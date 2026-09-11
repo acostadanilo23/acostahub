@@ -6,3 +6,8 @@ body {
   color: #444;
   padding: 0 10px;
 }
+
+header {
+  margin: 0 auto 20px auto;
+  text-align: center;
+}
