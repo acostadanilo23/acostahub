@@ -8,7 +8,9 @@ services:
       PASTA_DADOS: /app/data
       HOST: 0.0.0.0 # dentro do container tem que ouvir em tudo
     ports:
-      - "127.0.0.1:3000:3000" # só a máquina acessa; o proxy reverso publica pra fora
+      # padrão: só a própria máquina acessa (o proxy reverso publica pra fora).
+      # Proxy em outra máquina (ex.: pelo WireGuard)? No .env: HBHUB_PORTA=8084
+      - "${HBHUB_PORTA:-127.0.0.1:3000}:3000"
     volumes:
       - hbhub-dados:/app/data
 
