@@ -56,6 +56,31 @@ db.exec(`
     valor TEXT NOT NULL
   );
 
+  -- coleções e itens (catálogo de videogames, livros etc.)
+  CREATE TABLE IF NOT EXISTS colecoes (
+    id        INTEGER PRIMARY KEY,
+    slug      TEXT NOT NULL UNIQUE,
+    nome      TEXT NOT NULL,
+    subtitulo TEXT NOT NULL DEFAULT '',
+    grupo     TEXT NOT NULL DEFAULT 'videogames',
+    estilo    TEXT NOT NULL DEFAULT '',
+    ordem     INTEGER NOT NULL DEFAULT 0,
+    visivel   INTEGER NOT NULL DEFAULT 1
+  );
+  CREATE TABLE IF NOT EXISTS itens (
+    id            INTEGER PRIMARY KEY,
+    colecao_id    INTEGER NOT NULL REFERENCES colecoes (id) ON DELETE CASCADE,
+    titulo        TEXT NOT NULL,
+    ano           TEXT NOT NULL DEFAULT '',
+    regiao        TEXT NOT NULL DEFAULT '',
+    estado        TEXT NOT NULL DEFAULT '',
+    observacoes   TEXT NOT NULL DEFAULT '',
+    foto          TEXT NOT NULL DEFAULT '',
+    ordem         INTEGER NOT NULL DEFAULT 0,
+    criado_em     TEXT NOT NULL,
+    atualizado_em TEXT NOT NULL
+  );
+
   -- contador de visitas: totais por dia, páginas mais vistas e quem já foi contado hoje
   CREATE TABLE IF NOT EXISTS visitas_dia (
     dia            TEXT PRIMARY KEY,
@@ -109,6 +134,13 @@ const q = {
   sessaoValida: db.prepare(`SELECT 1 AS ok FROM sessoes WHERE id_hash = ? AND expira > ?`),
   sessaoApagar: db.prepare(`DELETE FROM sessoes WHERE id_hash = ?`),
   sessoesVelhas: db.prepare(`DELETE FROM sessoes WHERE expira <= ?`),
+
+  colecoesPorGrupo: db.prepare(`SELECT * FROM colecoes WHERE visivel = 1 AND grupo = ? ORDER BY ordem`),
+  todasColecoes: db.prepare(`SELECT * FROM colecoes WHERE visivel = 1 ORDER BY ordem`),
+  colecaoPorSlug: db.prepare(`SELECT * FROM colecoes WHERE slug = ?`),
+  contarColecoes: db.prepare(`SELECT COUNT(*) AS n FROM colecoes`),
+  inserirColecao: db.prepare(`INSERT INTO colecoes (slug, nome, subtitulo, grupo, estilo, ordem, visivel) VALUES (?, ?, ?, ?, ?, ?, 1)`),
+  itensDaColecao: db.prepare(`SELECT * FROM itens WHERE colecao_id = ? ORDER BY ordem, id`),
 };
 
 module.exports = {
@@ -140,4 +172,11 @@ module.exports = {
   sessaoValida: (idHash) => !!q.sessaoValida.get(idHash, Date.now()),
   apagarSessao: (idHash) => q.sessaoApagar.run(idHash),
   limparSessoes: () => q.sessoesVelhas.run(Date.now()),
+
+  colecoesPorGrupo: (grupo) => q.colecoesPorGrupo.all(grupo),
+  todasColecoes: () => q.todasColecoes.all(),
+  colecaoPorSlug: (slug) => q.colecaoPorSlug.get(slug),
+  contarColecoes: () => q.contarColecoes.get().n,
+  inserirColecao: (c) => Number(q.inserirColecao.run(c.slug, c.nome, c.subtitulo, c.grupo, c.estilo, c.ordem).lastInsertRowid),
+  itensDaColecao: (colecaoId) => q.itensDaColecao.all(colecaoId),
 };

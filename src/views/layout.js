@@ -13,25 +13,11 @@ const FAVICON = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' vi
 
 const SECOES = { blog: 'Blog', opinioes: 'Opiniões', projetos: 'Projetos' };
 
-const PLATAFORMAS = [
-  ['ps1', 'p-ps1', 'PS1', 'PlayStation'],
-  ['ps2', 'p-ps2', 'PS2', 'PlayStation 2'],
-  ['ps3', 'p-ps3', 'PS3', 'PlayStation 3'],
-  ['ps4', 'p-ps4', 'PS4', 'PlayStation 4'],
-  ['xbox', 'p-xbox', 'XBOX', 'Xbox'],
-  ['n64', 'p-n64', 'N64', 'Nintendo 64'],
-  ['wii', 'p-wii', 'Wii', 'Wii'],
-  ['consoles', 'p-ps3', 'Consoles', 'os aparelhos em si'],
-];
-const OUTRAS = [
-  ['livros', 'p-livros', 'Livros', 'a estante'],
-  ['filmes', 'p-filmes', 'Filmes', 'DVDs e afins'],
-  ['jogos-pc', 'p-pc', 'PC', 'jogos de PC'],
-];
-
 const urlPost = (p) => `/${p.secao}/${p.slug}`;
 
 function navLateral(aqui, ultimo) {
+  const videogames = db.colecoesPorGrupo('videogames');
+  const outros = db.colecoesPorGrupo('outros');
   const caixas = [
     ['Navegação', [
       ['inicio', '/', 'Início'],
@@ -46,8 +32,8 @@ function navLateral(aqui, ultimo) {
       ['blog-todos', '/blog', 'Todos os posts'],
       ['rss', '/feed.xml', 'Feed RSS'],
     ]],
-    ['Por plataforma', PLATAFORMAS.map(([k, , , nome]) => [k, `/colecoes/${k}`, nome === 'os aparelhos em si' ? 'Consoles' : nome])],
-    ['Outras coleções', OUTRAS.map(([k, , nome]) => [k, `/colecoes/${k}`, k === 'jogos-pc' ? 'Jogos de PC' : nome])],
+    ['Por plataforma', videogames.map((c) => [c.slug, `/colecoes/${c.slug}`, c.nome])],
+    ['Outras coleções', outros.map((c) => [c.slug, `/colecoes/${c.slug}`, c.slug === 'jogos-pc' ? 'Jogos de PC' : c.nome])],
   ];
   return caixas.map(([titulo, itens]) => `
                 <section class="caixa">
@@ -293,4 +279,4 @@ function emObras(chamada, texto) {
                 </div>`;
 }
 
-module.exports = { pagina, ranking, emObras, modalErro, urlPost, SECOES, PLATAFORMAS, OUTRAS, FAVICON };
+module.exports = { pagina, ranking, emObras, modalErro, urlPost, SECOES, FAVICON };

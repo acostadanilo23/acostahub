@@ -1,7 +1,8 @@
 const cfg = require('../config');
 const { esc, textoPuro } = require('../markdown');
 const { dataBR, tagsDe, slugify, paraDate } = require('../util');
-const { pagina, ranking, emObras, modalErro, urlPost, SECOES, PLATAFORMAS, OUTRAS } = require('./layout');
+const { pagina, ranking, emObras, modalErro, urlPost, SECOES } = require('./layout');
+const db = require('../db');
 const { CORES, quantos } = require('../chat');
 
 const AVATAR = '<b>H</b><i>B</i>'; // monograma, igual ao logo
@@ -234,12 +235,14 @@ ${p.html}
   });
 }
 
-function grade(itens) {
-  return itens.map(([k, cls, nome, sub]) =>
-    `                    <a class="${cls}" href="/colecoes/${k}">${nome}<small>${sub}</small></a>`).join('\n');
+function grade(colecoes) {
+  return colecoes.map((c) =>
+    `                    <a class="${c.estilo}" href="/colecoes/${c.slug}">${c.nome}<small>${c.subtitulo}</small></a>`).join('\n');
 }
 
 function colecoes() {
+  const videogames = db.colecoesPorGrupo('videogames');
+  const outros = db.colecoesPorGrupo('outros');
   return pagina({
     titulo: 'Coleções :: HB Hub',
     descricao: 'As coleções do HB: videogames (PS1, PS2, PS3, PS4, Xbox, N64, Wii), livros, filmes e jogos de PC.',
@@ -253,21 +256,21 @@ function colecoes() {
 
                 <h2 class="subtitulo">Videogames</h2>
                 <div class="plataformas">
-${grade(PLATAFORMAS)}
+${grade(videogames)}
                 </div>
 
                 <h2 class="subtitulo">Outros</h2>
                 <div class="plataformas">
-${grade(OUTRAS)}
+${grade(outros)}
                 </div>`,
   });
 }
 
 function colecao(chave) {
-  const item = [...PLATAFORMAS, ...OUTRAS].find(([k]) => k === chave);
-  if (!item) return null;
+  const item = db.colecaoPorSlug(chave);
+  if (!item || !item.visivel) return null;
   const nomes = { consoles: 'Consoles', livros: 'Livros', filmes: 'Filmes', 'jogos-pc': 'Jogos de PC' };
-  const nome = nomes[chave] || item[3];
+  const nome = nomes[chave] || item.subtitulo || item.nome;
   return pagina({
     titulo: `Coleção: ${nome} :: HB Hub`,
     descricao: `Coleção de ${nome} do HB.`,

@@ -46,7 +46,29 @@ function rerenderizar() {
   if (n) console.log(`Re-renderizei ${n} post(s).`);
 }
 
+// coleções iniciais — mesmos slugs de antes, pra nenhum link mudar
+const SEED_COLECOES = [
+  { slug: 'ps1',      nome: 'PS1',      subtitulo: 'PlayStation',        grupo: 'videogames', estilo: 'p-ps1',    ordem: 1  },
+  { slug: 'ps2',      nome: 'PS2',      subtitulo: 'PlayStation 2',      grupo: 'videogames', estilo: 'p-ps2',    ordem: 2  },
+  { slug: 'ps3',      nome: 'PS3',      subtitulo: 'PlayStation 3',      grupo: 'videogames', estilo: 'p-ps3',    ordem: 3  },
+  { slug: 'ps4',      nome: 'PS4',      subtitulo: 'PlayStation 4',      grupo: 'videogames', estilo: 'p-ps4',    ordem: 4  },
+  { slug: 'xbox',     nome: 'XBOX',     subtitulo: 'Xbox',               grupo: 'videogames', estilo: 'p-xbox',   ordem: 5  },
+  { slug: 'n64',      nome: 'N64',      subtitulo: 'Nintendo 64',        grupo: 'videogames', estilo: 'p-n64',    ordem: 6  },
+  { slug: 'wii',      nome: 'Wii',      subtitulo: 'Wii',               grupo: 'videogames', estilo: 'p-wii',    ordem: 7  },
+  { slug: 'consoles', nome: 'Consoles', subtitulo: 'os aparelhos em si', grupo: 'videogames', estilo: 'p-ps3',    ordem: 8  },
+  { slug: 'livros',   nome: 'Livros',   subtitulo: 'a estante',          grupo: 'outros',     estilo: 'p-livros', ordem: 9  },
+  { slug: 'filmes',   nome: 'Filmes',   subtitulo: 'DVDs e afins',       grupo: 'outros',     estilo: 'p-filmes', ordem: 10 },
+  { slug: 'jogos-pc', nome: 'PC',       subtitulo: 'jogos de PC',        grupo: 'outros',     estilo: 'p-pc',     ordem: 11 },
+];
+
+function semeaduraColecoes() {
+  if (db.contarColecoes() > 0) return;
+  for (const c of SEED_COLECOES) db.inserirColecao(c);
+  console.log(`Banco novo: cadastrei ${SEED_COLECOES.length} coleções.`);
+}
+
 module.exports = function semente() {
+  semeaduraColecoes();
   if (db.contarPosts() > 0) return rerenderizar();
   db.inserirPost({
     slug: 'minha-primeira-contribuicao-open-source',
@@ -63,3 +85,4 @@ module.exports = function semente() {
   });
   console.log('Banco novo: cadastrei o primeiro post.');
 };
+
