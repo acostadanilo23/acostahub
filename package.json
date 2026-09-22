@@ -1,0 +1,15 @@
+{
+  "name": "hb-hub",
+  "version": "1.0.0",
+  "private": true,
+  "description": "O cantinho do HB na internet: blog com cara de 2003, painel e editor de posts.",
+  "main": "server.js",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning server.js",
+    "dev": "node --watch --disable-warning=ExperimentalWarning server.js",
+    "senha": "node tools/criar-senha.js"
+  }
+}

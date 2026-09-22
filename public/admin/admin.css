@@ -1,0 +1,356 @@
+/* =========================================================
+   Painel do Webmaster (carrega junto do styles.css)
+   ========================================================= */
+
+body.adm { padding: 0 }
+.adm input, .adm select, .adm textarea, .adm button { font: inherit; color: inherit }
+
+.btn {
+  display: inline-block;
+  padding: 5px 12px;
+  font: 900 12px/1.3 "Arial Black", Impact, sans-serif;
+  text-transform: uppercase;
+  color: #fff;
+  cursor: pointer;
+  background: linear-gradient(#ff4d4d, #a00);
+  border: 2px outset #f66;
+  text-shadow: 1px 1px 0 #000;
+}
+.btn:active { border-style: inset }
+.btn:disabled { filter: grayscale(1); opacity: .6; cursor: wait }
+.btn.cinza { background: linear-gradient(#777, #333); border-color: #999 }
+.btn.azul { background: linear-gradient(#5ab0ff, #1560c4 55%, #0a3a80); border-color: #8cf }
+.btn.largo { display: block; width: 100% }
+.link-perigo {
+  padding: 0;
+  font-size: 11px;
+  color: #f66;
+  text-decoration: underline;
+  cursor: pointer;
+  background: none;
+  border: 0;
+}
+.link-perigo:hover { color: #fff; background: #c00 }
+
+/* barra do topo */
+.adm-barra {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 16px;
+  padding: 6px 12px;
+  background: linear-gradient(#ffcf33, #ff7a00 40%, #d61a00 75%, #6a0000);
+  border-bottom: 3px solid #000;
+}
+.adm-logo { display: flex; align-items: center; text-decoration: none; color: #fff }
+.adm-logo:hover { background: none; color: #fff }
+.adm-logo b, .adm-logo i {
+  display: inline-block;
+  width: 26px;
+  height: 26px;
+  font: normal 900 19px/22px "Arial Black", sans-serif;
+  text-align: center;
+  border: 2px solid #000;
+}
+.adm-logo b { background: #000; color: #fff; transform: rotate(-6deg) }
+.adm-logo i { background: #fff; color: #000; margin-left: -6px; transform: rotate(5deg) }
+.adm-logo span {
+  margin-left: 8px;
+  font: 900 15px "Arial Black", Impact, sans-serif;
+  text-transform: uppercase;
+  text-shadow: 2px 2px 0 #000, -1px -1px 0 #000;
+}
+.adm-barra nav { display: flex; flex-wrap: wrap; align-items: center; gap: 4px }
+.adm-barra nav a, .adm-barra nav button {
+  padding: 3px 10px;
+  font: bold 11px Verdana, sans-serif;
+  color: #fff;
+  text-decoration: none;
+  cursor: pointer;
+  background: rgba(0,0,0,.55);
+  border: 1px solid #000;
+}
+.adm-barra nav a:hover, .adm-barra nav button:hover, .adm-barra nav a.aqui { background: #000; color: #fc0 }
+.adm-barra form { margin: 0 }
+
+.adm-miolo { max-width: 1000px; margin: 14px auto; padding: 0 10px }
+
+.adm-numeros { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px }
+.adm-numeros div {
+  padding: 8px;
+  text-align: center;
+  font-size: 10px;
+  text-transform: uppercase;
+  color: #aaa;
+  background: #000;
+  border: 2px inset #444;
+}
+.adm-numeros b { display: block; font: bold 22px "Courier New", monospace; color: #3f3; text-shadow: 0 0 5px #3f3 }
+
+.adm-tabela { width: 100%; border-collapse: collapse; font-size: 12px }
+.adm-tabela th { padding: 5px 8px; text-align: left; font-size: 10px; text-transform: uppercase; color: #888; background: #0a0a0a }
+.adm-tabela td { padding: 6px 8px; border-top: 1px solid #2a2a2a; vertical-align: middle }
+.adm-tabela tr:hover td { background: #1f1f1f }
+.adm-tabela .tit { font: bold 13px "Trebuchet MS", Verdana, sans-serif; text-decoration: none }
+.adm-tabela small { display: block; color: #666; font-size: 10px }
+.adm-tabela .acoes { white-space: nowrap; text-align: right }
+.adm-tabela .acoes a { margin-right: 8px; font-size: 11px }
+
+.adm-numeros a { color: #aaa }
+.grafico {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 140px;
+  padding: 8px 8px 0;
+  background: #000 repeating-linear-gradient(transparent 0 27px, #1a1a1a 27px 28px);
+  border: 2px inset #444;
+}
+.barra-dia { position: relative; flex: 1; height: 100%; display: flex; align-items: flex-end; justify-content: center }
+.barra-dia span { position: absolute; bottom: 14px; width: 70%; min-height: 1px; max-height: calc(100% - 14px) }
+.barra-dia .pv { background: linear-gradient(#ffcf33, #ff7a00) }
+.barra-dia .uv { width: 40%; background: #3f3; box-shadow: 0 0 4px #3f3 }
+.barra-dia small { position: absolute; bottom: 0; font: 9px "Courier New", monospace; color: #777 }
+.legenda { margin: 6px 0 10px; font-size: 10px; color: #888 }
+.legenda i { display: inline-block; width: 10px; height: 10px; margin: 0 3px 0 8px; vertical-align: -1px }
+.legenda i.pv { background: #ff7a00 }
+.legenda i.uv { background: #3f3 }
+
+.sit { display: inline-block; padding: 0 6px; font: bold 9px/16px Verdana, sans-serif; text-transform: uppercase; color: #000 }
+.sit.rascunho { background: #888 }
+.sit.publicado { background: #6f6 }
+.sit.agendado { background: #5ab0ff }
+
+/* ---------- login (janelinha estilo Windows 98) ---------- */
+.janela-login { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 16px }
+.janela {
+  width: 100%;
+  max-width: 340px;
+  color: #000;
+  background: #c0c0c0;
+  border: 2px solid;
+  border-color: #fff #000 #000 #fff;
+  box-shadow: inset -1px -1px 0 #808080, inset 1px 1px 0 #dfdfdf, 6px 6px 0 rgba(0,0,0,.6);
+}
+.janela-titulo {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 2px;
+  padding: 3px 4px 3px 6px;
+  font: bold 12px Tahoma, Verdana, sans-serif;
+  color: #fff;
+  background: linear-gradient(90deg, #000080, #1084d0);
+}
+.janela-titulo i {
+  width: 16px;
+  height: 14px;
+  font: bold 12px/12px Tahoma, sans-serif;
+  font-style: normal;
+  text-align: center;
+  color: #000;
+  background: #c0c0c0;
+  border: 1px solid;
+  border-color: #fff #000 #000 #fff;
+}
+.janela-corpo { padding: 12px 14px 14px; font: 12px Tahoma, Verdana, sans-serif }
+.janela-corpo a { color: #00c }
+.janela-corpo label { display: block; margin-bottom: 8px }
+.janela-corpo input {
+  display: block;
+  width: 100%;
+  margin-top: 2px;
+  padding: 3px 4px;
+  color: #000;
+  background: #fff;
+  border: 2px inset #808080;
+}
+.janela-corpo .btn { display: block; margin: 12px 0 0 auto }
+.erro { padding: 6px 8px; font-weight: bold; color: #fff; background: #c00; border: 1px solid #600 }
+
+/* ---------- editor ---------- */
+.editor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 290px;
+  gap: 12px;
+  max-width: 1400px;
+  margin: 12px auto;
+  padding: 0 10px;
+}
+.ed-principal { min-width: 0 }
+.ed-titulo {
+  width: 100%;
+  padding: 8px 10px;
+  font: 900 22px Impact, "Arial Black", sans-serif !important;
+  letter-spacing: .5px;
+  color: #fff !important;
+  background: #000;
+  border: 2px inset #444;
+}
+.ed-titulo:focus, .editor input:focus, .editor textarea:focus, .editor select:focus { outline: 2px solid #fc0; outline-offset: -2px }
+.ed-slug { display: flex; align-items: center; margin: 4px 0 8px; font-size: 11px; color: #888 }
+.ed-slug span { color: #aaa }
+.ed-slug input { flex: 1; min-width: 60px; padding: 1px 4px; font-size: 11px; color: #fc3; background: transparent; border: 1px dashed #444 }
+
+.ed-ferramentas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  background: linear-gradient(#444, #222);
+  border: 1px solid #000;
+  border-bottom: 0;
+}
+.ed-ferramentas button {
+  min-width: 28px;
+  padding: 3px 7px;
+  font-size: 12px;
+  color: #eee;
+  cursor: pointer;
+  background: linear-gradient(#555, #2a2a2a);
+  border: 1px solid;
+  border-color: #777 #111 #111 #777;
+}
+.ed-ferramentas button:hover { color: #000; background: #fc0 }
+.ed-ferramentas button:active { border-color: #111 #777 #777 #111 }
+.ed-ferramentas button.destacado { color: #fff; background: linear-gradient(#ff4d4d, #a00) }
+.ed-ferramentas .sep { width: 1px; height: 20px; margin: 0 4px; background: #111; box-shadow: 1px 0 0 #555 }
+.ed-modos { margin-left: auto; display: flex }
+.ed-modos button.ativo { color: #000; background: #fc0 }
+
+.ed-area {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  height: calc(100vh - 230px);
+  min-height: 380px;
+  border: 1px solid #000;
+}
+.ed-area textarea {
+  width: 100%;
+  height: 100%;
+  padding: 12px;
+  resize: none;
+  font: 14px/1.6 Consolas, "Courier New", monospace !important;
+  color: #e6e6e6 !important;
+  background: #0a0a0a;
+  border: 0;
+  border-right: 2px solid #333;
+  tab-size: 2;
+}
+.ed-previa { overflow-y: auto; background: #151515 }
+.ed-previa .post { min-height: 100%; border: 0 }
+.ed-area.escrever { grid-template-columns: 1fr }
+.ed-area.escrever .ed-previa { display: none }
+.ed-area.previa { grid-template-columns: 1fr }
+.ed-area.previa textarea { display: none }
+.ed-soltar {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font: 900 22px "Arial Black", sans-serif;
+  color: #fc0;
+  background: rgba(0,0,0,.85);
+  border: 4px dashed #fc0;
+  pointer-events: none;
+}
+.ed-area.arrastando .ed-soltar { display: flex }
+
+.ed-status {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 3px 8px;
+  font: 11px "Courier New", monospace;
+  color: #3f3;
+  background: #000;
+  border: 1px solid #000;
+  border-top: 1px solid #333;
+}
+#estado.sujo { color: #fc0 }
+#estado.erro { color: #f66 }
+
+.ed-lateral { font-size: 11px }
+.ed-lateral .caixa { padding: 0 8px 10px; background: #1b1b1b; border: 1px solid #333 }
+.ed-lateral .caixa h3 { margin: 0 -8px 8px; background: linear-gradient(#666, #222); border-top-color: #aaa }
+.ed-lateral label { display: block; margin-top: 8px; font-weight: bold; color: #fc3 }
+.ed-lateral input:not([type=checkbox]), .ed-lateral select, .ed-lateral textarea {
+  display: block;
+  width: 100%;
+  margin-top: 2px;
+  padding: 4px 5px;
+  font-weight: normal;
+  color: #eee;
+  background: #000;
+  border: 2px inset #444;
+}
+.ed-lateral textarea { resize: vertical }
+.ed-lateral small { display: block; margin-top: 2px; color: #777 }
+.ed-lateral label.ed-check { font-weight: normal; color: #ccc }
+.ed-botoes { display: grid; grid-template-columns: 1fr 1fr; gap: 6px }
+.ed-botoes .btn { padding: 6px 4px; font-size: 11px }
+.ed-situacao { margin: 8px 0 0; color: #aaa }
+.ed-situacao b { color: #fff }
+input[type="datetime-local"] { color-scheme: dark }
+
+.biblioteca { list-style: none; margin: 8px 0 0; padding: 0; max-height: 320px; overflow-y: auto }
+.biblioteca li {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 2px 8px;
+  align-items: center;
+  padding: 4px 0;
+  border-top: 1px dotted #333;
+}
+.biblioteca li.vazio { display: block; color: #666 }
+.biblioteca .mini {
+  grid-row: span 2;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: bold 9px Verdana, sans-serif;
+  text-transform: uppercase;
+  color: #000;
+  background: #fc0 center / cover no-repeat;
+  border: 1px solid #000;
+}
+.biblioteca .nome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #ddd }
+.biblioteca .acoes { display: flex; gap: 8px }
+.biblioteca .acoes button { padding: 0; font-size: 10px; color: #fc3; text-decoration: underline; cursor: pointer; background: none; border: 0 }
+.biblioteca .acoes button.link-perigo { color: #f66 }
+.biblioteca li.enviando .nome { color: #fc0 }
+.progresso { display: block; height: 4px; background: #333 }
+.progresso i { display: block; height: 100%; width: 0; background: #3f3 }
+
+.colinha { width: 100%; border-collapse: collapse; font-size: 10px }
+.colinha td { padding: 2px 3px; border-top: 1px dotted #333; color: #aaa }
+.colinha code { color: #3f3; font-size: 10px }
+
+.aviso-backup {
+  grid-column: 1 / -1;
+  padding: 8px 10px;
+  font-weight: bold;
+  color: #000;
+  background: #fc0;
+  border: 2px solid #000;
+}
+.aviso-backup button { margin-left: 8px }
+
+@media (max-width: 900px) {
+  .editor { grid-template-columns: 1fr }
+  .ed-area { grid-template-columns: 1fr; height: 65vh }
+  .ed-area:not(.previa) .ed-previa { display: none }
+  .ed-area.previa textarea { display: none }
+  .ed-modos button[data-modo="dividido"] { display: none }
+  .adm-numeros { grid-template-columns: 1fr 1fr }
+  .adm-posts th:nth-child(2), .adm-posts td:nth-child(2) { display: none }
+}

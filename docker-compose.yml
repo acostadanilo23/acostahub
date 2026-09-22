@@ -1,0 +1,16 @@
+services:
+  hbhub:
+    build: .
+    container_name: hbhub
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      PASTA_DADOS: /app/data
+      HOST: 0.0.0.0 # dentro do container tem que ouvir em tudo
+    ports:
+      - "127.0.0.1:3000:3000" # só a máquina acessa; o proxy reverso publica pra fora
+    volumes:
+      - hbhub-dados:/app/data
+
+volumes:
+  hbhub-dados:

@@ -1,0 +1,952 @@
+/* =========================================================
+   HB HUB :: estilo anos 2000
+   - um único CSS, sem fontes externas, sem imagens, sem JS
+   - tudo desenhado com gradientes pra caber no ESP32
+   ========================================================= */
+
+* { box-sizing: border-box }
+[hidden] { display: none !important }
+
+html {
+  background: #1a0202;
+  background-image:
+    radial-gradient(#5c0b0b 1.4px, transparent 1.6px),
+    radial-gradient(#360505 1.4px, transparent 1.6px);
+  background-size: 18px 18px;
+  background-position: 0 0, 9px 9px;
+  scrollbar-color: #c00 #111;
+}
+
+body {
+  margin: 0;
+  padding: 10px 8px 30px;
+  font: 12px/1.5 Verdana, Tahoma, Geneva, sans-serif;
+  color: #ddd;
+}
+
+::selection { background: #fc0; color: #000 }
+
+a { color: #fc3 }
+a:hover { color: #fff; background: #c00; text-decoration: none }
+
+img { max-width: 100%; height: auto; display: block }
+
+h1, h2, h3, h4 { margin: 0; font-family: "Trebuchet MS", Verdana, sans-serif }
+
+p { margin: 0 0 12px }
+
+/* ---------- moldura geral (800px, como manda o figurino) ---------- */
+#tudo {
+  max-width: 800px;
+  margin: 0 auto;
+  background: #0d0d0d;
+  border: 2px solid #000;
+  box-shadow: 0 0 0 1px #700, 0 0 30px #000;
+}
+
+/* ---------- faixa de cima ---------- */
+#faixa-topo {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 8px;
+  font-size: 10px;
+  color: #aaa;
+  background: linear-gradient(#2a2a2a, #000);
+  border-bottom: 1px solid #444;
+}
+#faixa-topo a { color: #fff; text-decoration: none; font-weight: bold }
+#faixa-topo a:hover { color: #fc0; background: none }
+
+/* ---------- cabeçalho em chamas ---------- */
+#topo {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  padding: 10px 10px 0;
+  background:
+    repeating-linear-gradient(90deg, rgba(0,0,0,.07) 0 2px, transparent 2px 5px),
+    linear-gradient(#ffcf33, #ff7a00 40%, #d61a00 75%, #6a0000);
+  border-bottom: 4px solid #000;
+}
+
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  text-decoration: none;
+  color: #000;
+}
+.logo:hover { background: none; color: #000 }
+.logo b, .logo i {
+  display: inline-block;
+  width: 44px;
+  height: 44px;
+  font: normal 900 34px/40px "Arial Black", Impact, sans-serif;
+  text-align: center;
+  border: 3px solid #000;
+}
+.logo b { background: #000; color: #fff; transform: rotate(-6deg) translateY(-3px) }
+.logo i { background: #fff; color: #000; margin-left: -12px; transform: rotate(5deg) translateY(4px) }
+.logo span {
+  font: 900 13px/1.05 "Arial Black", Impact, sans-serif;
+  text-transform: uppercase;
+  color: #fff;
+  text-shadow: 2px 2px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
+}
+.logo small {
+  display: block;
+  font: italic bold 10px Verdana, sans-serif;
+  text-transform: none;
+  color: #ffe9a0;
+}
+
+/* abas estilo Cartoon Network */
+.abas { display: flex; flex-wrap: wrap; gap: 2px; align-items: flex-end }
+.abas a {
+  display: inline-block;
+  padding: 7px 14px 5px;
+  font: 900 16px/1 "Arial Black", Impact, sans-serif;
+  text-transform: uppercase;
+  text-decoration: none;
+  letter-spacing: -.5px;
+  color: #fff;
+  text-shadow: 2px 2px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
+  border: 2px solid #000;
+  border-bottom: 0;
+  border-radius: 5px 5px 0 0;
+  box-shadow: inset 0 2px 0 rgba(255,255,255,.55), inset 0 -8px 12px rgba(0,0,0,.3);
+  transform: skewX(-8deg);
+  transition: transform .1s;
+}
+.abas a:hover { transform: skewX(-8deg) translateY(-3px); color: #fff }
+.abas a.ativa { transform: skewX(-8deg) translateY(-5px); padding-bottom: 10px; margin-bottom: -5px }
+.aba-blog { background: linear-gradient(#5ab0ff, #1560c4 55%, #0a3a80) }
+.aba-colecoes { background: linear-gradient(#ff6a6a, #d11 55%, #800) }
+.aba-opinioes { background: linear-gradient(#6fe0da, #179e98 55%, #0b5e5a) }
+.aba-projetos { background: linear-gradient(#ffe46b, #f5a300 55%, #b86a00) }
+.aba-chat { background: linear-gradient(#d9a0ff, #8a2be2 55%, #4b0f8a) }
+.abas a.aba-chat:hover { background: linear-gradient(#d9a0ff, #8a2be2 55%, #4b0f8a) }
+.abas a.aba-blog:hover { background: linear-gradient(#5ab0ff, #1560c4 55%, #0a3a80) }
+.abas a.aba-colecoes:hover { background: linear-gradient(#ff6a6a, #d11 55%, #800) }
+.abas a.aba-opinioes:hover { background: linear-gradient(#6fe0da, #179e98 55%, #0b5e5a) }
+.abas a.aba-projetos:hover { background: linear-gradient(#ffe46b, #f5a300 55%, #b86a00) }
+
+/* ---------- letreiro (o "TV schedule") ---------- */
+#letreiro {
+  display: flex;
+  align-items: stretch;
+  height: 26px;
+  background: linear-gradient(#555, #111 50%, #000);
+  border-bottom: 2px solid #c00;
+  font: bold 11px/26px Verdana, sans-serif;
+  overflow: hidden;
+}
+#letreiro b, #letreiro a.todos {
+  flex: none;
+  padding: 0 16px 0 10px;
+  font: 900 12px/26px "Arial Black", Impact, sans-serif;
+  text-transform: uppercase;
+  color: #fff;
+  background: #c00;
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 0 100%);
+}
+#letreiro a.todos {
+  padding: 0 10px 0 16px;
+  text-decoration: none;
+  background: #333;
+  clip-path: polygon(10px 0, 100% 0, 100% 100%, 10px 100%, 0 50%);
+}
+#letreiro a.todos:hover { background: #fc0; color: #000 }
+.rolagem { flex: 1; overflow: hidden; white-space: nowrap }
+.rolagem span {
+  display: inline-block;
+  padding-left: 100%;
+  color: #fc3;
+  animation: rola 28s linear -9s infinite;
+}
+.rolagem span i { color: #fff; font-style: normal; margin: 0 10px }
+@keyframes rola { to { transform: translateX(-100%) } }
+
+/* ---------- 3 colunas ---------- */
+#colunas { display: flex }
+
+#esq {
+  flex: none;
+  width: 160px;
+  padding: 8px 6px;
+  background: linear-gradient(90deg, #8d0000, #d40f0f 45%, #b00000 85%, #6d0000);
+  border-right: 2px solid #000;
+}
+#meio { flex: 1; min-width: 0; padding: 10px }
+#dir {
+  flex: none;
+  width: 180px;
+  padding: 8px 6px;
+  background: #1b1b1b;
+  border-left: 2px solid #000;
+}
+
+/* caixas das laterais (cabeçalho com ponta cortada, à la GameSpot) */
+.caixa { margin-bottom: 12px }
+.caixa h3 {
+  margin: 0 -2px 5px;
+  padding: 3px 18px 3px 7px;
+  font: bold 11px Verdana, sans-serif;
+  color: #fff;
+  background: linear-gradient(#4a0000, #1a0000);
+  border-top: 1px solid #ff5a5a;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 12px) 100%, 0 100%);
+  text-shadow: 1px 1px 0 #000;
+}
+#dir .caixa h3 { background: linear-gradient(#666, #222); border-top-color: #aaa }
+
+.nav-lateral { list-style: none; margin: 0; padding: 0 }
+.nav-lateral a {
+  display: block;
+  padding: 2px 4px 2px 12px;
+  font-size: 11px;
+  font-weight: bold;
+  color: #fff;
+  text-decoration: none;
+  border-bottom: 1px dotted rgba(255,255,255,.35);
+  position: relative;
+}
+.nav-lateral a::before { content: "›"; position: absolute; left: 3px; color: #ffcf33 }
+.nav-lateral a:hover { background: #000; color: #fc0 }
+.nav-lateral a.aqui { background: rgba(0,0,0,.45); color: #fc0 }
+
+/* ---------- enquete só com CSS ---------- */
+.enquete { font-size: 11px; color: #fff }
+.enquete p { font-weight: bold; margin-bottom: 6px }
+.enquete label { display: block; cursor: pointer; padding: 1px 0 }
+.enquete input[type=radio] { margin: 0 4px 0 0; vertical-align: -2px; accent-color: #fc0 }
+#votei { position: absolute; opacity: 0; pointer-events: none }
+.botao-votar {
+  display: block !important;
+  margin-top: 6px;
+  padding: 3px !important;
+  text-align: center;
+  font: 900 11px "Arial Black", sans-serif;
+  color: #fff;
+  background: linear-gradient(#ff4d4d, #a00);
+  border: 2px outset #f66;
+}
+.botao-votar:active { border-style: inset }
+.resultado { display: none; margin-top: 6px }
+#votei:checked ~ .resultado { display: block }
+#votei:checked ~ .botao-votar { display: none !important }
+.barra { display: block; height: 8px; margin: 1px 0 4px; background: #000; border: 1px solid #000 }
+.barra i { display: block; height: 100%; background: repeating-linear-gradient(90deg, #fc0 0 4px, #f90 4px 6px) }
+.resultado small { display: block; color: #ffd0d0; font-size: 9px; margin-top: 4px }
+
+/* ---------- lateral direita ---------- */
+.status { list-style: none; margin: 0; padding: 0; font-size: 11px }
+.status li { padding: 3px 0; border-bottom: 1px dotted #444 }
+.status b { display: block; color: #fc3; font-size: 9px; text-transform: uppercase; letter-spacing: 1px }
+
+.bilhete {
+  padding: 8px 10px 10px;
+  font: 13px/20px "Comic Sans MS", "Comic Neue", cursive;
+  color: #333;
+  background: #fff7a8 linear-gradient(transparent 19px, #e8d96a 19px) 0 6px / 100% 20px;
+  box-shadow: 3px 3px 0 #000;
+  transform: rotate(1.5deg);
+}
+.bilhete h4 { font: bold 14px "Comic Sans MS", cursive; color: #c00 }
+.bilhete ul { margin: 0; padding-left: 16px }
+.bilhete s { color: #999 }
+
+.contador { text-align: center; font-size: 10px; color: #999 }
+.contador span {
+  display: inline-block;
+  margin: 4px 0;
+  padding: 2px;
+  background: #000;
+  border: 2px inset #555;
+}
+.contador span i {
+  display: inline-block;
+  width: 14px;
+  margin: 0 1px;
+  font: bold 16px/22px "Courier New", monospace;
+  font-style: normal;
+  color: #3f3;
+  background: linear-gradient(#222, #000 50%, #222);
+  text-shadow: 0 0 4px #3f3;
+}
+
+.botoes { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center }
+.b88 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 28px;
+  padding: 0 2px;
+  font: bold 8px/1.05 Verdana, sans-serif;
+  text-align: center;
+  text-transform: uppercase;
+  border: 1px solid #000;
+  box-shadow: inset 1px 1px 0 rgba(255,255,255,.5), inset -1px -1px 0 rgba(0,0,0,.5);
+}
+.b-esp { background: #000; color: #3f3; font-family: "Courier New", monospace; font-size: 9px }
+.b-nojs { background: repeating-linear-gradient(-45deg, #fc0 0 6px, #000 6px 12px); color: #fff; text-shadow: 1px 1px 0 #000, -1px -1px 0 #000 }
+.b-800 { background: linear-gradient(#fff, #9cf); color: #036 }
+.b-mao { background: #ffc6e5; color: #c0357a; font-family: "Comic Sans MS", cursive; font-size: 9px; text-transform: none }
+.b-html { background: linear-gradient(#e0e0e0, #999); color: #000 }
+.b-br { background: #009c3b; color: #ffdf00; text-shadow: 1px 1px 0 #002776 }
+
+/* ---------- miolo: painéis ---------- */
+.painel {
+  margin-bottom: 12px;
+  background: #161616;
+  border: 1px solid #333;
+}
+.painel > h2 {
+  padding: 4px 8px;
+  font: bold 13px "Trebuchet MS", Verdana, sans-serif;
+  text-transform: uppercase;
+  color: #fc3;
+  background: linear-gradient(#333, #0a0a0a);
+  border-left: 5px solid #c00;
+  border-bottom: 1px solid #000;
+}
+.painel > h2 small { float: right; font: 10px Verdana, sans-serif; text-transform: none; color: #888 }
+.painel .dentro { padding: 10px }
+
+.bem-vindo {
+  font: 900 26px/1 "Arial Black", Impact, sans-serif;
+  text-transform: uppercase;
+  color: #fff;
+  letter-spacing: -1px;
+  margin: 0 0 8px;
+  text-shadow: 3px 3px 0 #c00;
+}
+
+/* banner do post em destaque (raios de sol + fogo, zero bytes de imagem) */
+.banner {
+  position: relative;
+  display: block;
+  min-height: 190px;
+  padding: 22px 20px 18px;
+  margin-bottom: 12px;
+  overflow: hidden;
+  text-decoration: none;
+  color: #fff;
+  border: 3px solid #000;
+  outline: 2px solid #555;
+  background:
+    linear-gradient(transparent 55%, rgba(0,0,0,.85)),
+    repeating-conic-gradient(from 0deg at 78% 45%, #5a0f00 0 9deg, #200000 9deg 18deg);
+}
+.banner:hover { background:
+    linear-gradient(transparent 55%, rgba(0,0,0,.85)),
+    repeating-conic-gradient(from 4deg at 78% 45%, #7a1800 0 9deg, #2a0000 9deg 18deg); color: #fff }
+.banner .selo {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 86px;
+  height: 86px;
+  font: 900 13px/1 "Arial Black", Impact, sans-serif;
+  text-align: center;
+  color: #c00;
+  background: #ffe600;
+  clip-path: polygon(50% 0, 61% 17%, 79% 9%, 79% 29%, 98% 34%, 85% 50%, 98% 66%, 79% 71%, 79% 91%, 61% 83%, 50% 100%, 39% 83%, 21% 91%, 21% 71%, 2% 66%, 15% 50%, 2% 34%, 21% 29%, 21% 9%, 39% 17%);
+  transform: rotate(12deg);
+  animation: gira 6s ease-in-out infinite;
+}
+@keyframes gira { 50% { transform: rotate(-6deg) scale(1.08) } }
+.banner .chapeu {
+  display: inline-block;
+  padding: 1px 6px;
+  margin-bottom: 8px;
+  font: bold 10px Verdana, sans-serif;
+  letter-spacing: 2px;
+  color: #000;
+  background: #fc0;
+  transform: skewX(-12deg);
+}
+.banner strong {
+  display: block;
+  max-width: 330px;
+  font: 900 30px/1.02 Impact, "Arial Black", sans-serif;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  text-shadow: 3px 3px 0 #000, -1px -1px 0 #000;
+  color: #fff;
+}
+.banner strong em { font-style: normal; color: #ffcf33 }
+.banner .linha-fina {
+  display: block;
+  margin-top: 10px;
+  font: 11px/1.4 "Trebuchet MS", Verdana, sans-serif;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: #ddd;
+}
+
+/* botão "LER AGORA >" estilo Cartoon Network */
+.botao {
+  display: inline-block;
+  margin-top: 12px;
+  padding: 4px 12px 4px 14px;
+  font: 900 12px/1.3 "Arial Black", Impact, sans-serif;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: #fff;
+  background: linear-gradient(#7fd4ff, #1a7fd6 50%, #0b4f96);
+  border: 2px solid #fff;
+  border-radius: 14px;
+  box-shadow: 0 0 0 2px #000, inset 0 -3px 0 rgba(0,0,0,.3);
+  text-shadow: 1px 1px 0 #000;
+}
+.botao:hover, .banner:hover .botao { background: linear-gradient(#ffe46b, #f5a300 50%, #b86a00); color: #fff }
+
+/* ladrilhos das seções */
+.ladrilhos { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px }
+.ladrilhos a {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 92px;
+  padding: 6px;
+  text-align: center;
+  text-decoration: none;
+  font: 900 13px/1.1 "Arial Black", Impact, sans-serif;
+  text-transform: uppercase;
+  color: #fff;
+  text-shadow: 2px 2px 0 #000;
+  border: 3px solid #000;
+  outline: 2px solid #666;
+  transition: transform .1s;
+}
+.ladrilhos a span { font-size: 30px; line-height: 1.1; margin-bottom: 2px }
+.ladrilhos a:hover { transform: rotate(-3deg) scale(1.05); outline-color: #fc0; color: #fff }
+.l-blog { background: repeating-linear-gradient(45deg, #1560c4 0 10px, #1b6fdc 10px 20px) }
+.l-colecoes { background: radial-gradient(circle at 30% 30%, #ff6a6a, #a00) }
+.l-opinioes { background: repeating-radial-gradient(circle at 50% 120%, #179e98 0 8px, #0f7d78 8px 16px) }
+.l-projetos { background: repeating-linear-gradient(-45deg, #f5a300 0 10px, #111 10px 20px) }
+.ladrilhos a.l-blog:hover { background: repeating-linear-gradient(45deg, #1560c4 0 10px, #1b6fdc 10px 20px) }
+.ladrilhos a.l-colecoes:hover { background: radial-gradient(circle at 30% 30%, #ff6a6a, #a00) }
+.ladrilhos a.l-opinioes:hover { background: repeating-radial-gradient(circle at 50% 120%, #179e98 0 8px, #0f7d78 8px 16px) }
+.ladrilhos a.l-projetos:hover { background: repeating-linear-gradient(-45deg, #f5a300 0 10px, #111 10px 20px) }
+
+/* ranking de posts (o "Top 10" da GameSpot) */
+.ranking { width: 100%; border-collapse: collapse }
+.ranking td { padding: 6px 8px; border-bottom: 1px solid #2a2a2a; vertical-align: middle }
+.ranking tr:nth-child(odd) td { background: #111 }
+.ranking .num {
+  width: 36px;
+  font: italic 900 22px Impact, "Arial Black", sans-serif;
+  text-align: center;
+  color: #f90;
+}
+.ranking .titulo a { font: bold 13px "Trebuchet MS", Verdana, sans-serif; text-decoration: none }
+.ranking .titulo small { display: block; color: #888; font-size: 10px }
+.ranking .quando { width: 86px; font-size: 10px; text-align: right; color: #aaa; background: #1e1e1e !important }
+.ranking .quando b { display: block; color: #fff; font-size: 11px }
+.ranking tr.primeiro td { background: linear-gradient(90deg, #3a1a00, #161616 70%) }
+.ranking tr.primeiro .num { font-size: 34px; color: #fc0 }
+.ranking tr.primeiro .titulo a { font-size: 16px }
+.ranking tr.breve .titulo { color: #666 }
+.ranking tr.breve .num { color: #444 }
+
+.novo {
+  display: inline-block;
+  padding: 0 4px;
+  margin-left: 4px;
+  font: bold 9px Verdana, sans-serif;
+  color: #fff;
+  background: #c00;
+  vertical-align: 2px;
+  animation: pisca 1s steps(1) infinite;
+}
+@keyframes pisca { 50% { visibility: hidden } }
+
+/* sobre mim */
+.sobre { display: flex; gap: 12px; align-items: flex-start }
+.avatar {
+  flex: none;
+  width: 72px;
+  height: 72px;
+  padding: 6px;
+  background: #0a3a80;
+  background: repeating-linear-gradient(45deg, #1560c4 0 4px, #0a3a80 4px 8px);
+  border: 3px ridge #999;
+  image-rendering: pixelated;
+}
+.avatar svg { display: block; width: 100%; height: 100% }
+
+/* tabelinha tipo ficha técnica */
+.ficha { width: 100%; border-collapse: collapse; font-size: 11px }
+.ficha th { width: 90px; padding: 3px 6px; text-align: left; color: #fc3; background: #222; border-bottom: 1px solid #000 }
+.ficha td { padding: 3px 6px; background: #1a1a1a; border-bottom: 1px solid #000 }
+
+/* ---------- página de post ---------- */
+.migalhas { margin-bottom: 8px; font-size: 10px; color: #888 }
+.migalhas a { color: #aaa }
+
+.post-cab {
+  padding: 14px 12px 12px;
+  margin-bottom: 0;
+  background:
+    linear-gradient(90deg, rgba(0,0,0,.9) 35%, rgba(0,0,0,.4)),
+    repeating-conic-gradient(from 0deg at 90% 50%, #5a0f00 0 9deg, #200000 9deg 18deg);
+  border: 1px solid #333;
+  border-bottom: 3px solid #c00;
+}
+.post-cab h1 {
+  font: 900 26px/1.1 Impact, "Arial Black", sans-serif;
+  letter-spacing: .5px;
+  color: #fff;
+  text-shadow: 2px 2px 0 #c00;
+}
+.post-cab .meta { margin-top: 8px; font-size: 11px; color: #bbb }
+.post-cab .meta b { color: #fc3 }
+.etiqueta {
+  display: inline-block;
+  padding: 0 6px;
+  margin: 0 4px 6px 0;
+  font: bold 9px/16px Verdana, sans-serif;
+  text-transform: uppercase;
+  color: #000;
+  background: #fc0;
+}
+.etiqueta.azul { background: #5ab0ff }
+.etiqueta.verde { background: #6f6 }
+
+.post {
+  padding: 16px 14px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: #e6e6e6;
+  background: #151515;
+  border: 1px solid #333;
+  border-top: 0;
+}
+.post p { margin: 0 0 14px }
+.post h2 {
+  margin: 20px 0 8px;
+  font: bold 16px "Trebuchet MS", Verdana, sans-serif;
+  color: #fc3;
+  border-bottom: 1px dashed #444;
+}
+.post figure {
+  margin: 16px 0;
+  padding: 6px 6px 4px;
+  background: #000;
+  border: 2px outset #777;
+}
+.post figcaption { padding-top: 4px; font-size: 10px; color: #999; text-align: center }
+.post .fluxo {
+  margin: 16px 0;
+  padding: 8px;
+  font: bold 13px "Courier New", monospace;
+  text-align: center;
+  color: #3f3;
+  background: #000;
+  border: 2px inset #444;
+  text-shadow: 0 0 5px #3f3;
+}
+
+.post .aviso {
+  margin: 16px 0;
+  padding: 10px 12px 2px;
+  font: 13px/1.5 "Comic Sans MS", "Comic Neue", cursive;
+  color: #333;
+  background: #fff7a8;
+  box-shadow: 3px 3px 0 #000;
+  transform: rotate(-.6deg);
+}
+.post .aviso a { color: #c00 }
+.post blockquote {
+  margin: 16px 0;
+  padding: 8px 12px;
+  color: #ccc;
+  font-style: italic;
+  background: #1f1f1f;
+  border-left: 4px solid #fc0;
+}
+.post blockquote p:last-child { margin-bottom: 0 }
+.post ul, .post ol { margin: 0 0 14px; padding-left: 22px }
+.post code {
+  padding: 1px 4px;
+  font: 12px "Courier New", monospace;
+  color: #3f3;
+  background: #000;
+  border: 1px solid #333;
+}
+.post pre {
+  margin: 16px 0;
+  padding: 10px;
+  overflow-x: auto;
+  background: #000;
+  border: 2px inset #444;
+}
+.post pre code { padding: 0; border: 0; color: #3f3; line-height: 1.45 }
+.post hr { margin: 20px 0; border: 0; height: 4px; background: repeating-linear-gradient(90deg, #c00 0 10px, transparent 10px 14px) }
+.post audio { display: block; width: 100%; margin: 14px 0 }
+.post figure img + img { margin-top: 6px }
+
+.faixa-previa {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  max-width: 800px;
+  margin: -10px auto 10px;
+  padding: 6px;
+  text-align: center;
+  font: bold 11px Verdana, sans-serif;
+  color: #000;
+  background: repeating-linear-gradient(-45deg, #fc0 0 14px, #ffe066 14px 28px);
+  border: 2px solid #000;
+}
+.faixa-previa a { color: #000 }
+
+a.b88 { text-decoration: none }
+a.b88:hover { background: #000; color: #fc0 }
+.etiqueta { text-decoration: none }
+a.etiqueta:hover { color: #fff; background: #c00 }
+
+.resumo {
+  float: right;
+  width: 190px;
+  margin: 0 0 12px 14px;
+  padding: 8px 10px;
+  font: 12px/1.45 "Comic Sans MS", "Comic Neue", cursive;
+  color: #333;
+  background: #fff7a8;
+  box-shadow: 3px 3px 0 #000;
+  transform: rotate(1.5deg);
+}
+.resumo b { display: block; color: #c00; font-size: 13px }
+.resumo ol { margin: 4px 0 0; padding-left: 18px }
+
+.fim-post {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 12px 0;
+  font-size: 11px;
+}
+.fim-post .desligado { color: #555 }
+
+/* ---------- em construção ---------- */
+.em-obras {
+  margin-bottom: 12px;
+  padding: 10px;
+  text-align: center;
+  background: repeating-linear-gradient(-45deg, #fc0 0 14px, #000 14px 28px);
+  background-size: 40px 40px;
+  animation: obra 1.2s linear infinite;
+}
+@keyframes obra { to { background-position: 40px 0 } }
+.em-obras div { padding: 18px 12px; background: #111; border: 2px solid #000 }
+.em-obras strong {
+  display: block;
+  font: 900 24px/1.1 "Arial Black", Impact, sans-serif;
+  color: #fc0;
+  text-transform: uppercase;
+  text-shadow: 3px 3px 0 #c00;
+}
+.em-obras p { margin: 10px 0 0; color: #ccc }
+
+/* grade de plataformas das coleções */
+.plataformas { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; margin-bottom: 12px }
+.plataformas a {
+  display: block;
+  padding: 26px 6px 8px;
+  text-align: center;
+  text-decoration: none;
+  font: 900 15px/1.1 "Arial Black", Impact, sans-serif;
+  color: #fff;
+  text-shadow: 2px 2px 0 #000;
+  border: 2px solid #000;
+  border-top-width: 14px;
+  border-radius: 3px;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.25), 3px 3px 0 #000;
+  transition: transform .1s;
+}
+.plataformas a small { display: block; font: 10px Verdana, sans-serif; color: #eee; text-shadow: none; margin-top: 4px }
+.plataformas a:hover { transform: translateY(-3px); color: #fff }
+.p-ps1 { background: linear-gradient(#b8b8b8, #7d7d7d) }
+.p-ps2 { background: linear-gradient(#2d3a8c, #0b0f2e) }
+.p-ps3 { background: linear-gradient(#444, #000) }
+.p-ps4 { background: linear-gradient(#1f4fa8, #081a3d) }
+.p-xbox { background: linear-gradient(#6c3, #1f5c10) }
+.p-n64 { background: conic-gradient(#e22 0 25%, #1560c4 0 50%, #1b9e3a 0 75%, #f5a300 0) }
+.p-wii { background: linear-gradient(#fff, #c9d6e0); color: #1d8fe0 !important; text-shadow: none !important }
+.p-wii small { color: #456 !important }
+.p-livros { background: repeating-linear-gradient(90deg, #7a3b12 0 8px, #8f4a1a 8px 10px, #5b2a0c 10px 18px) }
+.p-filmes { background: linear-gradient(90deg, #000 0 8px, transparent 8px calc(100% - 8px), #000 0), repeating-linear-gradient(#000 0 4px, #555 4px 8px); background-color: #333 }
+.p-pc { background: linear-gradient(#d8d2b8, #a9a283); color: #222 !important; text-shadow: none !important }
+.p-pc small { color: #333 !important }
+.plataformas a[class^="p-"]:hover { filter: brightness(1.15) }
+
+.subtitulo {
+  margin: 4px 0 8px;
+  font: 900 14px "Arial Black", Impact, sans-serif;
+  text-transform: uppercase;
+  color: #fff;
+}
+
+/* ---------- bate-papo ---------- */
+.sala-mini { text-align: center; font-size: 11px }
+.sala-mini p { margin: 0 0 4px }
+.sala-mini b { font: bold 18px "Courier New", monospace; color: #3f3; text-shadow: 0 0 4px #3f3 }
+.sala-mini .botao { margin-top: 2px; font-size: 10px; padding: 2px 10px }
+
+.sala {
+  margin-bottom: 10px;
+  background: #c0c0c0;
+  border: 2px solid;
+  border-color: #fff #000 #000 #fff;
+  box-shadow: inset -1px -1px 0 #808080, inset 1px 1px 0 #dfdfdf;
+}
+.sala-titulo {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 2px;
+  padding: 3px 6px;
+  font: bold 12px Tahoma, Verdana, sans-serif;
+  color: #fff;
+  background: linear-gradient(90deg, #4b0f8a, #8a2be2 60%, #d9a0ff);
+}
+.sala-titulo b { font-weight: normal; white-space: nowrap }
+.sala-carregando { margin: 0; padding: 30px 12px; text-align: center; color: #333 }
+
+.sala-entrada { padding: 14px; color: #000; font: 12px Tahoma, Verdana, sans-serif }
+.sala-entrada p { margin-bottom: 10px }
+.sala-entrada .estrela { color: #c90 }
+.sala-campo { display: block; font-weight: bold }
+.sala-campo input, .sala-falar input[type=text], #texto, .sala-falar select {
+  padding: 3px 5px;
+  font: 12px Tahoma, Verdana, sans-serif;
+  color: #000;
+  background: #fff;
+  border: 2px inset #808080;
+}
+.sala-campo input { display: block; width: 100%; max-width: 260px; margin-top: 2px }
+.sala-cores { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 }
+.sala-cores label { cursor: pointer }
+.sala-cores input { position: absolute; opacity: 0 }
+.sala-cores span { display: block; width: 26px; height: 26px; background: var(--cor); border: 2px solid #000; box-shadow: inset 2px 2px 0 rgba(255,255,255,.4) }
+.sala-cores input:checked + span { outline: 3px solid #000; outline-offset: 2px }
+.sala-cores input:focus-visible + span { outline: 3px dashed #00c; outline-offset: 2px }
+.sala-erro { padding: 6px 8px; font-weight: bold; color: #fff; background: #c00 }
+
+.sala-dentro {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 130px;
+  gap: 2px;
+  padding: 2px;
+}
+.sala-msgs {
+  height: 360px;
+  overflow-y: auto;
+  padding: 6px 8px;
+  font: 13px/1.45 "Courier New", monospace;
+  color: #ddd;
+  background: #000;
+  border: 2px inset #808080;
+  overflow-wrap: anywhere;
+}
+.sala-msgs .m { padding: 1px 0 }
+.sala-msgs .hora { margin-right: 6px; color: #666 }
+.sala-msgs .nick { cursor: pointer }
+.sala-msgs .m > b:not([style]) { color: #fff }
+.sala-msgs .sis { color: #888; font-style: italic }
+.sala-msgs .reservado { color: #d9a0ff }
+.sala-msgs .pra-mim { background: #1f1f00 }
+.sala-msgs .pra-mim .txt { color: #ffcf33 }
+.sala-msgs .mod, .sala-lado .mod {
+  margin-left: 6px;
+  padding: 0 3px;
+  font: 9px Verdana, sans-serif;
+  color: #f66;
+  cursor: pointer;
+  background: none;
+  border: 1px solid #600;
+}
+.sala-lado { padding: 4px; font: 11px Tahoma, Verdana, sans-serif; color: #000; background: #fff; border: 2px inset #808080; overflow-y: auto; max-height: 360px }
+.sala-lado ul { list-style: none; margin: 4px 0 0; padding: 0 }
+.sala-lado li { display: flex; align-items: center; justify-content: space-between; padding: 1px 0 }
+.sala-lado .nick {
+  padding: 0;
+  font: bold 11px Tahoma, Verdana, sans-serif;
+  text-align: left;
+  cursor: pointer;
+  background: none;
+  border: 0;
+  text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
+}
+.sala-falar { grid-column: 1 / -1; padding: 4px 2px 2px; font: 11px Tahoma, Verdana, sans-serif; color: #000 }
+.sala-linha { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin-bottom: 4px }
+.sala-linha #eu { font-size: 12px }
+.sala-linha label { white-space: nowrap }
+#texto { flex: 1; min-width: 160px; padding: 5px }
+.sala-falar .botao { margin: 0 }
+.sala-linha.pequena { justify-content: space-between; margin: 0 }
+.link-sair { padding: 0; font: 11px Tahoma, Verdana, sans-serif; color: #00c; text-decoration: underline; cursor: pointer; background: none; border: 0 }
+.sala-regras { font-size: 11px; color: #999 }
+
+@media (max-width: 560px) {
+  .sala-dentro { grid-template-columns: 1fr }
+  .sala-msgs { height: 55vh }
+  .sala-lado { max-height: 90px }
+  .sala-lado ul { display: flex; flex-wrap: wrap; gap: 2px 10px }
+}
+
+/* ---------- modal de erro (Windows 98) ---------- */
+.modal-fundo {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 40, .55);
+}
+#fechou-erro { position: fixed; top: 0 } /* fechar o modal não rola a página */
+#fechou-erro:target + .modal-fundo { display: none }
+.modal-erro {
+  width: 100%;
+  max-width: 440px;
+  padding: 0;
+  font: 12px Tahoma, Verdana, sans-serif;
+  color: #000;
+  background: #c0c0c0;
+  border: 2px solid;
+  border-color: #fff #000 #000 #fff;
+  box-shadow: inset -1px -1px 0 #808080, inset 1px 1px 0 #dfdfdf, 8px 8px 0 rgba(0,0,0,.6);
+  animation: modal-entra .12s steps(3);
+}
+dialog.modal-erro::backdrop { background: rgba(0, 0, 40, .55) }
+@keyframes modal-entra { from { transform: scale(.9) } }
+.modal-erro .janela-titulo {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 2px;
+  padding: 3px 3px 3px 6px;
+  font: bold 12px Tahoma, Verdana, sans-serif;
+  color: #fff;
+  background: linear-gradient(90deg, #800000, #d01010);
+}
+.modal-erro .fechar {
+  width: 18px;
+  height: 16px;
+  padding: 0;
+  font: bold 12px/12px Tahoma, sans-serif;
+  text-align: center;
+  text-decoration: none;
+  color: #000;
+  cursor: pointer;
+  background: #c0c0c0;
+  border: 1px solid;
+  border-color: #fff #000 #000 #fff;
+}
+.modal-erro .fechar:hover { color: #000; background: #dfdfdf }
+.modal-corpo { display: flex; gap: 12px; padding: 14px 14px 6px }
+.modal-icone {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  font: bold 18px/34px Tahoma, sans-serif;
+  text-align: center;
+  color: #fff;
+  background: radial-gradient(circle at 35% 35%, #ff6060, #c00000);
+  border-radius: 50%;
+  box-shadow: 1px 1px 0 #000;
+}
+.modal-textos { min-width: 0; flex: 1 }
+.modal-textos p { margin: 0 0 8px; line-height: 1.45 }
+.modal-lista { margin: 0; padding-left: 16px; line-height: 1.45 }
+.modal-lista:has(li:only-child) { padding-left: 0; list-style: none }
+.modal-lista li + li { margin-top: 6px }
+.modal-codigo code { padding: 0 4px; background: #fff; border: 1px solid #808080 }
+.modal-detalhes { margin-top: 8px }
+.modal-detalhes summary { cursor: pointer; color: #00c }
+.modal-detalhes pre {
+  max-height: 160px;
+  margin: 6px 0 0;
+  padding: 6px;
+  overflow: auto;
+  font: 11px "Courier New", monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: #fff;
+  border: 2px inset #808080;
+}
+.modal-botoes { display: flex; justify-content: flex-end; gap: 6px; padding: 8px 14px 12px }
+.btn98 {
+  min-width: 80px;
+  padding: 4px 12px;
+  font: 12px Tahoma, Verdana, sans-serif;
+  text-align: center;
+  text-decoration: none;
+  color: #000;
+  cursor: pointer;
+  background: #c0c0c0;
+  border: 2px solid;
+  border-color: #fff #000 #000 #fff;
+  box-shadow: inset -1px -1px 0 #808080;
+}
+.btn98:hover { color: #000; background: #d4d4d4 }
+.btn98:active { border-color: #000 #fff #fff #000; box-shadow: inset 1px 1px 0 #808080 }
+.btn98:focus-visible { outline: 1px dotted #000; outline-offset: -5px }
+
+/* ---------- rodapé ---------- */
+#rodape { font-size: 10px }
+#rodape nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 14px;
+  padding: 6px 10px;
+  background: linear-gradient(#d40f0f, #7a0000);
+  border-top: 2px solid #000;
+}
+#rodape nav a { color: #fff; font-weight: bold; text-decoration: none }
+#rodape nav a:hover { color: #fc0; background: none; text-decoration: underline }
+#rodape p { margin: 0; padding: 6px 10px; text-align: center; color: #888; background: #000 }
+#rodape p + p { padding-top: 0 }
+
+/* ---------- celular (o futuro chegou) ---------- */
+@media (max-width: 760px) {
+  body { padding: 0 }
+  #tudo { border: 0 }
+  #faixa-topo span:first-child { display: none }
+  #topo { justify-content: center }
+  .abas { justify-content: center }
+  .abas a { font-size: 13px; padding: 6px 9px 4px }
+  #colunas { flex-direction: column }
+  #meio { order: -1 }
+  #esq, #dir { width: auto; border: 0; border-top: 2px solid #000 }
+  #esq { display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px }
+  .ladrilhos { grid-template-columns: 1fr 1fr }
+  .banner { padding-right: 90px }
+  .banner strong { font-size: 22px }
+  .resumo { float: none; width: auto; margin: 0 0 14px }
+}
+@media (max-width: 420px) {
+  #esq { display: block }
+  .banner { padding-right: 20px; padding-top: 100px }
+  .sobre { flex-direction: column }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important }
+  .rolagem span { padding-left: 0 }
+}

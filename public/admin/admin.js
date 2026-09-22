@@ -1,0 +1,523 @@
+// Painel do Webmaster: editor de posts, anexos e exclusões.
+// JS só existe aqui no painel; o site público continua sem JavaScript.
+'use strict';
+
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+
+const SESSAO_EXPIROU = 'Sua sessão expirou. Abre o painel em outra aba, entra de novo e depois salva aqui outra vez. '
+  + 'O que você escreveu continua nesta tela.';
+
+// monta um Error com status e detalhe técnico, venha a resposta em JSON ou não (ex.: proxy fora do ar)
+async function erroDaResposta(metodo, url, r) {
+  const texto = await r.text().catch(() => '');
+  let dados = {};
+  try { dados = JSON.parse(texto); } catch { /* não era JSON */ }
+  const msg = r.status === 401 ? SESSAO_EXPIROU
+    : dados.erro || (r.status >= 500 ? `O servidor respondeu com erro ${r.status}. Ele pode estar reiniciando.` : `Erro ${r.status}.`);
+  const e = new Error(msg);
+  e.status = r.status;
+  e.detalhe = [
+    `${metodo} ${url} → HTTP ${r.status}`,
+    dados.codigo && `código: ${dados.codigo}`,
+    dados.detalhe,
+    !dados.erro && texto && texto.slice(0, 300),
+  ].filter(Boolean).join('\n');
+  return e;
+}
+
+function erroDeRede(metodo, url, causa) {
+  const e = new Error('Não consegui falar com o servidor. Confere se ele está no ar e se a sua internet não caiu.');
+  e.status = 0;
+  e.detalhe = `${metodo} ${url}\n${causa?.message || causa}`;
+  return e;
+}
+
+async function api(metodo, url, corpo) {
+  let r;
+  try {
+    r = await fetch(url, {
+      method: metodo,
+      headers: corpo ? { 'Content-Type': 'application/json' } : {},
+      body: corpo ? JSON.stringify(corpo) : undefined,
+    });
+  } catch (causa) {
+    throw erroDeRede(metodo, url, causa);
+  }
+  if (!r.ok) throw await erroDaResposta(metodo, url, r);
+  try {
+    return await r.json();
+  } catch (causa) {
+    const e = new Error('O servidor mandou uma resposta que eu não entendi.');
+    e.detalhe = `${metodo} ${url} → HTTP ${r.status}\n${causa.message}`;
+    throw e;
+  }
+}
+
+// mostra o modal de erro. Erro de validação (e.detalhe === '') não mostra stack, só erro inesperado.
+function avisar(e, titulo = 'Erro') {
+  window.hbErro(e.message, { titulo, detalhe: e.detalhe ?? e.stack ?? '' });
+}
+
+// erro "esperado" (validação): mensagem clara e sem detalhe técnico
+function erroSimples(msg) {
+  const e = new Error(msg);
+  e.detalhe = '';
+  return e;
+}
+
+// ---------------------------------------------------------------- excluir post (painel e editor)
+document.addEventListener('click', async (ev) => {
+  const b = ev.target.closest('[data-excluir]');
+  if (!b) return;
+  if (!confirm(`Excluir "${b.dataset.titulo}" pra sempre?\n\nOs anexos continuam na biblioteca.`)) return;
+  try {
+    await api('DELETE', `/api/posts/${b.dataset.excluir}`);
+    window.onbeforeunload = null;
+    if ($('#editor')) location.href = '/admin';
+    else b.closest('tr').remove();
+  } catch (e) {
+    avisar(e, 'Não deu pra excluir');
+  }
+});
+
+const form = $('#editor');
+if (form) iniciarEditor(form);
+
+function iniciarEditor(form) {
+  const post = JSON.parse(form.dataset.post);
+  const maxBytes = Number(form.dataset.maxMb) * 1048576;
+  const ta = $('#conteudo');
+  const area = $('#area');
+  const previa = $('#previa');
+  const estado = $('#estado');
+  const campos = ['titulo', 'slug', 'secao', 'tags', 'publicado_em', 'resumo', 'tldr', 'conteudo'];
+  const chaveBackup = () => `hb-backup-${post.id || 'novo'}`;
+  let sujo = false;
+  let salvando = false;
+  let slugManual = !!$('#slug').value;
+
+  const valores = () => Object.fromEntries(campos.map((c) => [c, $('#' + c).value]));
+
+  function mostrarEstado(txt, classe = '') {
+    estado.textContent = txt;
+    estado.className = classe;
+  }
+
+  function marcarSujo() {
+    sujo = true;
+    mostrarEstado('alterações não salvas', 'sujo');
+    agendarBackup();
+  }
+
+  // ------------------------------------------------------------ slug e seção
+  const slugify = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80);
+
+  $('#titulo').addEventListener('input', () => {
+    if (!slugManual && post.status !== 'publicado') $('#slug').value = slugify($('#titulo').value);
+  });
+  $('#slug').addEventListener('input', () => { slugManual = true; });
+  $('#slug').addEventListener('change', () => { $('#slug').value = slugify($('#slug').value); });
+  $('#secao').addEventListener('change', () => { $('#slug-secao').textContent = `/${$('#secao').value}/`; });
+
+  form.addEventListener('input', marcarSujo);
+  form.addEventListener('submit', (e) => e.preventDefault());
+  window.onbeforeunload = (e) => { if (sujo) { e.preventDefault(); return ''; } };
+
+  // ------------------------------------------------------------ prévia
+  let timerPrevia;
+  let pedidoPrevia = 0;
+  let erroPrevia = ''; // o mesmo erro de prévia só aparece uma vez (senão pula modal a cada tecla)
+  async function atualizarPrevia() {
+    const n = ++pedidoPrevia;
+    const texto = ta.value;
+    const palavras = (texto.match(/\S+/g) || []).length;
+    try {
+      const r = await api('POST', '/api/previa', { conteudo: texto });
+      if (n !== pedidoPrevia) return;
+      erroPrevia = '';
+      previa.innerHTML = r.html || '<p style="color:#666">a prévia aparece aqui&hellip;</p>';
+      $('#contagem').textContent = `${palavras} palavra${palavras === 1 ? '' : 's'} · ~${r.minutos} min de leitura`;
+    } catch (e) {
+      if (n !== pedidoPrevia || e.message === erroPrevia) return;
+      erroPrevia = e.message;
+      mostrarEstado(e.status === 401 ? 'sessão expirou!' : 'a prévia falhou', 'erro');
+      avisar(e, 'A prévia não carregou');
+    }
+  }
+  ta.addEventListener('input', () => {
+    clearTimeout(timerPrevia);
+    timerPrevia = setTimeout(atualizarPrevia, 300);
+  });
+  atualizarPrevia();
+
+  // ------------------------------------------------------------ modos de visualização
+  function modo(m) {
+    area.classList.remove('escrever', 'previa');
+    if (m !== 'dividido') area.classList.add(m);
+    $$('[data-modo]').forEach((b) => b.classList.toggle('ativo', b.dataset.modo === m));
+    try { localStorage.setItem('hb-modo', m); } catch { /* sem storage */ }
+  }
+  $$('[data-modo]').forEach((b) => b.addEventListener('click', () => modo(b.dataset.modo)));
+  let modoSalvo = 'dividido';
+  try { modoSalvo = localStorage.getItem('hb-modo') || 'dividido'; } catch { /* sem storage */ }
+  modo(modoSalvo);
+
+  // ------------------------------------------------------------ formatação
+  function inserir(texto, selIni, selFim) {
+    ta.focus();
+    const ini = ta.selectionStart;
+    // execCommand mantém o Ctrl+Z funcionando
+    if (!document.execCommand('insertText', false, texto)) {
+      ta.setRangeText(texto, ini, ta.selectionEnd, 'end');
+      ta.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    if (selIni != null) ta.setSelectionRange(ini + selIni, ini + (selFim ?? selIni));
+  }
+
+  function envolver(antes, depois, exemplo) {
+    const sel = ta.value.slice(ta.selectionStart, ta.selectionEnd) || exemplo;
+    inserir(antes + sel + depois, antes.length, antes.length + sel.length);
+  }
+
+  function prefixarLinhas(prefixo) {
+    const v = ta.value;
+    const ini = v.lastIndexOf('\n', ta.selectionStart - 1) + 1;
+    let fim = v.indexOf('\n', ta.selectionEnd);
+    if (fim === -1) fim = v.length;
+    ta.setSelectionRange(ini, fim);
+    const linhas = v.slice(ini, fim).split('\n');
+    const novo = linhas.map((l, i) => (typeof prefixo === 'function' ? prefixo(i) : prefixo) + l).join('\n');
+    inserir(novo, novo.length);
+  }
+
+  function bloco(texto, selIni, selFim) {
+    const antes = ta.value.slice(0, ta.selectionStart);
+    const pre = !antes || antes.endsWith('\n\n') ? '' : antes.endsWith('\n') ? '\n' : '\n\n';
+    inserir(pre + texto + '\n', pre.length + selIni, pre.length + (selFim ?? selIni));
+  }
+
+  const FORMATOS = {
+    negrito: () => envolver('**', '**', 'negrito'),
+    italico: () => envolver('*', '*', 'itálico'),
+    riscado: () => envolver('~~', '~~', 'riscado'),
+    codigo: () => envolver('`', '`', 'código'),
+    h2: () => prefixarLinhas('## '),
+    h3: () => prefixarLinhas('### '),
+    lista: () => prefixarLinhas('- '),
+    numerada: () => prefixarLinhas((i) => `${i + 1}. `),
+    citacao: () => prefixarLinhas('> '),
+    link: () => {
+      const sel = ta.value.slice(ta.selectionStart, ta.selectionEnd) || 'texto do link';
+      const url = prompt('Endereço do link:', 'https://');
+      if (!url) return;
+      inserir(`[${sel}](${url})`, 1, 1 + sel.length);
+    },
+    bloco: () => bloco('```\ncódigo aqui\n```', 4, 15),
+    fluxo: () => bloco(':::fluxo\nFork → Branch → Commit\n:::', 9, 31),
+    aviso: () => bloco(':::aviso\n**Atenção:** texto do post-it\n:::', 9, 38),
+    linha: () => bloco('---', 3),
+    anexo: () => $('#arquivo').click(),
+  };
+  $$('[data-f]').forEach((b) => b.addEventListener('click', () => FORMATOS[b.dataset.f]()));
+
+  document.addEventListener('keydown', (e) => {
+    if (!(e.ctrlKey || e.metaKey)) return;
+    const k = e.key.toLowerCase();
+    if (k === 's') { e.preventDefault(); salvar(post.status === 'publicado' ? 'publicado' : 'rascunho'); }
+    if (document.activeElement !== ta) return;
+    if (k === 'b') { e.preventDefault(); FORMATOS.negrito(); }
+    if (k === 'i') { e.preventDefault(); FORMATOS.italico(); }
+    if (k === 'k') { e.preventDefault(); FORMATOS.link(); }
+  });
+
+  // Tab indenta em vez de sair do campo
+  ta.addEventListener('keydown', (e) => {
+    if (e.key === 'Tab' && !e.shiftKey && !e.ctrlKey) { e.preventDefault(); inserir('  '); }
+  });
+
+  // ------------------------------------------------------------ salvar
+  // links "prévia" e "no site" + botão de excluir, conforme a situação do post
+  function atualizarSituacao() {
+    const links = $('#links-post');
+    links.replaceChildren();
+    const link = (href, txt) => {
+      const a = document.createElement('a');
+      a.href = href;
+      a.target = '_blank';
+      a.textContent = txt;
+      links.append(' · ', a);
+    };
+    if (post.id) link(`/admin/ver/${post.id}`, 'prévia ↗');
+    const agendado = post.status === 'publicado' && post.publicado_em && new Date(post.publicado_em) > new Date();
+    if (post.status === 'publicado' && post.url && !agendado) link(post.url, 'ver no site ↗');
+    if (agendado) links.append(` · agendado pra ${new Date(post.publicado_em).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}`);
+    const excluir = $('#excluir-post');
+    excluir.hidden = !post.id;
+    excluir.dataset.excluir = post.id;
+    excluir.dataset.titulo = $('#titulo').value;
+  }
+  atualizarSituacao();
+
+  async function salvar(status) {
+    if (salvando) return;
+    if (!$('#titulo').value.trim()) {
+      mostrarEstado('falta o título!', 'erro');
+      window.hbErro('O post precisa de um título antes de salvar.', { titulo: 'Falta o título' });
+      $('#titulo').focus();
+      return;
+    }
+    if (status === 'publicado' && post.status !== 'publicado' && !confirm('Publicar esse post agora? (ou na data escolhida)')) return;
+    if (status === 'rascunho' && post.status === 'publicado' && !confirm('Tirar esse post do ar e voltar pra rascunho?')) return;
+
+    salvando = true;
+    $$('[data-acao]').forEach((b) => { b.disabled = true; });
+    mostrarEstado('salvando…');
+    try {
+      const enviados = valores();
+      const corpo = { ...enviados, status, atualizado_em: post.atualizado_em };
+      const r = post.id ? await api('PUT', `/api/posts/${post.id}`, corpo) : await api('POST', '/api/posts', corpo);
+      const eraNovo = !post.id;
+      Object.assign(post, r);
+      form.dataset.post = JSON.stringify(post);
+      $('#slug').value = r.slug;
+      slugManual = true;
+      $('#publicado_em').value = r.publicado_em;
+      $('#situacao').textContent = r.status;
+      $('[data-acao="publicar"]').textContent = r.status === 'publicado' ? 'Atualizar' : 'Publicar';
+      $('[data-acao="rascunho"]').textContent = r.status === 'publicado' ? 'Despublicar' : 'Salvar rascunho';
+      // se a pessoa continuou escrevendo enquanto salvava, isso ainda NÃO está salvo
+      const mudouDurante = campos.some((c) => c !== 'slug' && c !== 'publicado_em' && $('#' + c).value !== enviados[c]);
+      try { if (eraNovo) localStorage.removeItem('hb-backup-novo'); } catch { /* sem storage */ }
+      if (mudouDurante) {
+        agendarBackup();
+      } else {
+        sujo = false;
+        clearTimeout(timerBackup);
+        try { localStorage.removeItem(chaveBackup()); } catch { /* sem storage */ }
+      }
+      if (eraNovo) history.replaceState(null, '', `/admin/editar/${r.id}`);
+      atualizarSituacao();
+      const hora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      if (mudouDurante) mostrarEstado(`salvo às ${hora}, mas você mudou coisas depois disso`, 'sujo');
+      else mostrarEstado(r.status === 'publicado' ? `publicado! salvo às ${hora}` : `rascunho salvo às ${hora}`);
+    } catch (e) {
+      mostrarEstado(e.status === 401 ? 'sessão expirou! (seu texto continua aqui)' : 'não salvou!', 'erro');
+      agendarBackup();
+      avisar(e, 'Não deu pra salvar');
+    } finally {
+      salvando = false;
+      $$('[data-acao]').forEach((b) => { b.disabled = false; });
+    }
+  }
+  $('[data-acao="rascunho"]').addEventListener('click', () => salvar('rascunho'));
+  $('[data-acao="publicar"]').addEventListener('click', () => salvar('publicado'));
+
+  // ------------------------------------------------------------ backup local (se a aba fechar sem salvar)
+  let timerBackup;
+  function agendarBackup() {
+    clearTimeout(timerBackup);
+    timerBackup = setTimeout(() => {
+      try { localStorage.setItem(chaveBackup(), JSON.stringify({ quando: Date.now(), ...valores() })); } catch { /* cheio */ }
+    }, 800);
+  }
+
+  (function oferecerBackup() {
+    let b;
+    try { b = JSON.parse(localStorage.getItem(chaveBackup()) || 'null'); } catch { return; }
+    if (!b) return;
+    const atual = valores();
+    if (campos.every((c) => (b[c] ?? '') === atual[c])) {
+      try { localStorage.removeItem(chaveBackup()); } catch { /* ok */ }
+      return;
+    }
+    const aviso = document.createElement('div');
+    aviso.className = 'aviso-backup';
+    aviso.innerHTML = `&#9888; Tem uma versão não salva desse post de ${new Date(b.quando).toLocaleString('pt-BR')}.
+      <button type="button" class="btn azul">Restaurar</button><button type="button" class="btn cinza">Descartar</button>`;
+    form.prepend(aviso);
+    const [restaurar, descartar] = $$('button', aviso);
+    restaurar.onclick = () => {
+      campos.forEach((c) => { if (b[c] != null) $('#' + c).value = b[c]; });
+      aviso.remove();
+      marcarSujo();
+      atualizarPrevia();
+    };
+    descartar.onclick = () => {
+      try { localStorage.removeItem(chaveBackup()); } catch { /* ok */ }
+      aviso.remove();
+    };
+  })();
+
+  // ------------------------------------------------------------ anexos
+  const lista = $('#biblioteca');
+  const IMG = /\.(webp|png|jpe?g|gif)$/i;
+  const ACEITOS = ['webp', 'png', 'jpg', 'jpeg', 'gif', 'pdf', 'zip', 'mp3', 'txt'];
+
+  function markdownDe(a) {
+    const base = a.nome_original.replace(/\.[^.]+$/, '').replace(/[[\]]/g, '');
+    if (IMG.test(a.arquivo) || /\.mp3$/i.test(a.arquivo)) return `![${base}](${a.url})`;
+    return `[📎 ${a.nome_original.replace(/[[\]]/g, '')}](${a.url})`;
+  }
+
+  function itemBiblioteca(a) {
+    const li = document.createElement('li');
+    const mini = document.createElement('span');
+    mini.className = 'mini';
+    if (IMG.test(a.arquivo)) mini.style.backgroundImage = `url("${a.url}")`;
+    else mini.textContent = a.tipo;
+    const nome = document.createElement('span');
+    nome.className = 'nome';
+    nome.textContent = a.nome_original;
+    nome.title = `${a.nome_original} (${Math.ceil(a.tamanho / 1024)} KB)`;
+    const acoes = document.createElement('span');
+    acoes.className = 'acoes';
+    acoes.innerHTML = '<button type="button">inserir</button><button type="button">copiar link</button><button type="button" class="link-perigo">apagar</button>';
+    const [bInserir, bCopiar, bApagar] = $$('button', acoes);
+    bInserir.onclick = () => bloco(markdownDe(a), markdownDe(a).length);
+    bCopiar.onclick = async () => {
+      try { await navigator.clipboard.writeText(location.origin + a.url); bCopiar.textContent = 'copiado!'; } catch { prompt('Link:', location.origin + a.url); }
+    };
+    bApagar.onclick = async () => {
+      if (!confirm(`Apagar "${a.nome_original}" do servidor?`)) return;
+      try { await api('DELETE', `/api/anexos/${a.id}`); li.remove(); } catch (e) { avisar(e, 'Não deu pra apagar o arquivo'); }
+    };
+    li.append(mini, nome, acoes);
+    return li;
+  }
+
+  async function carregarBiblioteca() {
+    try {
+      const anexos = await api('GET', '/api/anexos');
+      lista.replaceChildren(...anexos.map(itemBiblioteca));
+      if (!anexos.length) lista.innerHTML = '<li class="vazio">nenhum arquivo ainda</li>';
+    } catch (e) {
+      lista.innerHTML = '<li class="vazio">não consegui carregar os arquivos</li>';
+      avisar(e, 'A biblioteca de arquivos não carregou');
+    }
+  }
+  carregarBiblioteca();
+
+  async function prepararImagem(arquivo) {
+    if (!/^image\/(png|jpeg|webp|gif)$/.test(arquivo.type)) return { arquivo, dims: '' };
+    let bmp;
+    try { bmp = await createImageBitmap(arquivo); } catch { return { arquivo, dims: '' }; }
+    const original = { arquivo, dims: `${bmp.width}x${bmp.height}` };
+    if (!$('#otimizar').checked || arquivo.type === 'image/gif') return original;
+
+    const escala = Math.min(1, 1280 / bmp.width);
+    const w = Math.round(bmp.width * escala);
+    const h = Math.round(bmp.height * escala);
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    canvas.getContext('2d').drawImage(bmp, 0, 0, w, h);
+    const blob = await new Promise((ok) => canvas.toBlob(ok, 'image/webp', 0.82));
+    if (!blob || blob.type !== 'image/webp' || (escala === 1 && blob.size >= arquivo.size)) return original;
+    const nome = arquivo.name.replace(/\.[^.]+$/, '') + '.webp';
+    return { arquivo: new File([blob], nome, { type: 'image/webp' }), dims: `${w}x${h}` };
+  }
+
+  function subir(arquivo, dims, progresso) {
+    return new Promise((ok, falha) => {
+      const x = new XMLHttpRequest();
+      x.open('POST', '/api/anexos');
+      x.setRequestHeader('Content-Type', 'application/octet-stream');
+      x.setRequestHeader('X-Nome', encodeURIComponent(arquivo.name));
+      if (dims) x.setRequestHeader('X-Dimensoes', dims);
+      x.upload.onprogress = (e) => e.lengthComputable && progresso(e.loaded / e.total);
+      x.onload = () => {
+        let r = {};
+        try { r = JSON.parse(x.responseText); } catch { /* sem json */ }
+        if (x.status < 300 && r.url) return ok(r);
+        const e = new Error(x.status === 401 ? SESSAO_EXPIROU
+          : `"${arquivo.name}": ${r.erro || (x.status === 413 ? 'arquivo grande demais pro servidor.' : `o servidor respondeu com erro ${x.status}.`)}`);
+        e.status = x.status;
+        e.detalhe = [`POST /api/anexos (${arquivo.name}, ${Math.ceil(arquivo.size / 1024)} KB) → HTTP ${x.status}`,
+          r.codigo && `código: ${r.codigo}`, r.detalhe, !r.erro && x.responseText.slice(0, 300)].filter(Boolean).join('\n');
+        falha(e);
+      };
+      x.onerror = () => falha(erroDeRede('POST', `/api/anexos (${arquivo.name})`, 'a conexão caiu no meio do envio'));
+      x.send(arquivo);
+    });
+  }
+
+  let contadorEnvio = 0;
+  async function enviarArquivos(arquivos) {
+    for (const bruto of arquivos) {
+      const marca = `⏳ enviando ${bruto.name}… [envio ${++contadorEnvio}]`;
+      // imagem sozinha no parágrafo (vira figura) e cursor dois "enter" abaixo, pronto pra continuar
+      bloco(marca + '\n', marca.length + 2);
+
+      const li = document.createElement('li');
+      li.className = 'enviando';
+      li.innerHTML = '<span class="mini">…</span><span class="nome"></span><span class="progresso"><i></i></span>';
+      $('.nome', li).textContent = `enviando ${bruto.name}`;
+      $('.vazio', lista)?.remove();
+      lista.prepend(li);
+
+      // troca o "⏳ enviando…" pelo resultado sem mexer no que a pessoa está fazendo.
+      // (não dá pra confiar no modo 'preserve' do setRangeText: com o cursor no fim do marcador
+      // ele deixa o texto novo SELECIONADO, e a próxima tecla apagaria a imagem do post)
+      const trocarMarca = (novo) => {
+        const i = ta.value.indexOf(marca);
+        if (i === -1) return;
+        const fim = i + marca.length;
+        const delta = novo.length - marca.length;
+        const ajusta = (p) => (p <= i ? p : p >= fim ? p + delta : i + novo.length);
+        const [ini, fimSel] = [ajusta(ta.selectionStart), ajusta(ta.selectionEnd)];
+        ta.setRangeText(novo, i, fim);
+        ta.setSelectionRange(ini, fimSel);
+        ta.dispatchEvent(new Event('input', { bubbles: true }));
+      };
+
+      try {
+        const ext = (bruto.name.match(/\.([^.]+)$/) || [, ''])[1].toLowerCase();
+        if (!ACEITOS.includes(ext)) {
+          throw erroSimples(`"${bruto.name}": esse tipo de arquivo não é aceito. Pode mandar imagem (${ACEITOS.slice(0, 5).join(', ')}), PDF, ZIP, MP3 ou TXT.`);
+        }
+        const { arquivo, dims } = await prepararImagem(bruto);
+        if (arquivo.size > maxBytes) throw erroSimples(`"${bruto.name}" tem ${(arquivo.size / 1048576).toFixed(1)} MB e o limite é ${form.dataset.maxMb} MB.`);
+        const a = await subir(arquivo, dims, (p) => { $('.progresso i', li).style.width = `${Math.round(p * 100)}%`; });
+        trocarMarca(markdownDe(a));
+        li.replaceWith(itemBiblioteca(a));
+      } catch (e) {
+        trocarMarca('');
+        li.remove();
+        if (!lista.children.length) lista.innerHTML = '<li class="vazio">nenhum arquivo ainda</li>';
+        avisar(e, 'O envio falhou');
+      }
+    }
+  }
+
+  $('#arquivo').addEventListener('change', (e) => {
+    enviarArquivos([...e.target.files]);
+    e.target.value = '';
+  });
+
+  ta.addEventListener('paste', (e) => {
+    const arquivos = [...(e.clipboardData?.files || [])];
+    if (!arquivos.length) return;
+    e.preventDefault();
+    enviarArquivos(arquivos);
+  });
+
+  let profundidade = 0;
+  area.addEventListener('dragenter', (e) => {
+    if (!e.dataTransfer?.types.includes('Files')) return;
+    profundidade++;
+    area.classList.add('arrastando');
+  });
+  area.addEventListener('dragleave', () => { if (--profundidade <= 0) { profundidade = 0; area.classList.remove('arrastando'); } });
+  area.addEventListener('dragover', (e) => { if (e.dataTransfer?.types.includes('Files')) e.preventDefault(); });
+  area.addEventListener('drop', (e) => {
+    profundidade = 0;
+    area.classList.remove('arrastando');
+    const arquivos = [...(e.dataTransfer?.files || [])];
+    if (!arquivos.length) return;
+    e.preventDefault();
+    ta.focus();
+    enviarArquivos(arquivos);
+  });
+}
