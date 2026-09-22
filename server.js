@@ -308,7 +308,32 @@ rota('POST', '/chat/moderar', async (req, res) => {
 }, { restrito: true });
 
 rota('GET', '/feed.xml', (req, res) => enviar(req, res, 200, feed(), 'application/rss+xml; charset=utf-8', { 'Cache-Control': 'public, max-age=600' }));
-rota('GET', '/robots.txt', (req, res) => enviar(req, res, 200, 'User-agent: *\nDisallow: /admin\nDisallow: /api\n', 'text/plain; charset=utf-8'));
+rota('GET', '/robots.txt', (req, res) => enviar(req, res, 200,
+  `User-agent: *\nDisallow: /admin\nDisallow: /api\nDisallow: /chat/\n\nSitemap: ${cfg.SITE_URL}/sitemap.xml\n`,
+  'text/plain; charset=utf-8', { 'Cache-Control': 'public, max-age=3600' }));
+
+// sitemap: só o que vale indexar (páginas "em construção" e tags ficam de fora, e têm noindex)
+function sitemap() {
+  const posts = db.publicados();
+  const data = (iso) => (iso || new Date().toISOString()).slice(0, 10);
+  const maisNovo = (lista) => lista.reduce((m, p) => (p.atualizado_em > m ? p.atualizado_em : m), '');
+  const urls = [
+    ['/', maisNovo(posts)],
+    ['/blog', maisNovo(posts)],
+    ...['opinioes', 'projetos']
+      .map((s) => [s, posts.filter((p) => p.secao === s)])
+      .filter(([, lista]) => lista.length)
+      .map(([s, lista]) => [`/${s}`, maisNovo(lista)]),
+    ['/colecoes', ''],
+    ...posts.map((p) => [urlPost(p), p.atualizado_em]),
+  ];
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${urls.map(([u, d]) => `  <url><loc>${md.esc(cfg.SITE_URL + u)}</loc><lastmod>${data(d)}</lastmod></url>`).join('\n')}
+</urlset>
+`;
+}
+rota('GET', '/sitemap.xml', (req, res) => enviar(req, res, 200, sitemap(), 'application/xml; charset=utf-8', { 'Cache-Control': 'public, max-age=3600' }));
 
 rota('GET', '/uploads/([^/]+)', (req, res, [arq]) => {
   const a = db.anexoPorArquivo(arq);

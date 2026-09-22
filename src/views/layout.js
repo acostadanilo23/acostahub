@@ -131,7 +131,29 @@ const direitaHtml = () => `
                 </section>
             </aside>`;
 
-function pagina({ titulo, descricao = '', aba = '', aqui = '', miolo, direita = true, noindex = false, faixa = '', scripts = [], modal = '' }) {
+// JSON dentro de <script>: escapa "<" pra ninguém fechar a tag por dentro do texto
+const jsonSeguro = (o) => JSON.stringify(o).replace(/</g, '\\u003c');
+
+// SEO: canônica, Open Graph/Twitter (prévia de link) e dados estruturados (schema.org)
+// seo = { caminho, tipo, imagem, publicado, modificado, tags, jsonld }
+function cabecaSeo({ titulo, descricao, seo, noindex }) {
+  if (!seo || !seo.caminho) return '';
+  const url = cfg.SITE_URL + seo.caminho;
+  const imagem = seo.imagem || `${cfg.SITE_URL}/img/og-hbhub.png`;
+  const m = (prop, valor, attr = 'property') => (valor ? `\n    <meta ${attr}="${prop}" content="${esc(valor)}">` : '');
+  let h = noindex ? '' : `\n    <link rel="canonical" href="${esc(url)}">`;
+  h += m('og:site_name', 'HB Hub') + m('og:locale', 'pt_BR') + m('og:type', seo.tipo || 'website')
+    + m('og:title', titulo) + m('og:description', descricao) + m('og:url', url) + m('og:image', imagem)
+    + m('twitter:card', 'summary_large_image', 'name');
+  if (seo.tipo === 'article') {
+    h += m('article:published_time', seo.publicado) + m('article:modified_time', seo.modificado)
+      + (seo.tags || []).map((t) => m('article:tag', t)).join('');
+  }
+  if (seo.jsonld) h += `\n    <script type="application/ld+json">${jsonSeguro(seo.jsonld)}</script>`;
+  return h;
+}
+
+function pagina({ titulo, descricao = '', aba = '', aqui = '', miolo, direita = true, noindex = false, faixa = '', scripts = [], modal = '', seo = null }) {
   const posts = db.publicados();
   const ultimo = posts[0];
   const aAba = (k, href, txt) => `<a class="aba-${k}${k === aba ? ' ativa' : ''}" href="${href}">${txt}</a>`;
@@ -151,8 +173,9 @@ function pagina({ titulo, descricao = '', aba = '', aqui = '', miolo, direita = 
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>${esc(titulo)}</title>
     <meta name="description" content="${esc(descricao)}">
-    <meta name="theme-color" content="#c00">${noindex ? '\n    <meta name="robots" content="noindex">' : ''}
-    <link rel="icon" href="${FAVICON}">
+    <meta name="theme-color" content="#c00">${noindex ? '\n    <meta name="robots" content="noindex, follow">' : ''}${cabecaSeo({ titulo, descricao, seo, noindex })}
+    <link rel="icon" href="/favicon.ico" sizes="48x48">
+    <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
     <link rel="alternate" type="application/rss+xml" title="HB Hub" href="/feed.xml">
     <link rel="stylesheet" href="${versao('/css/styles.css')}">${scripts.map((js) => `
     <script src="${versao(js)}" defer></script>`).join('')}

@@ -1,6 +1,6 @@
 const cfg = require('../config');
-const { esc } = require('../markdown');
-const { dataBR, tagsDe, slugify } = require('../util');
+const { esc, textoPuro } = require('../markdown');
+const { dataBR, tagsDe, slugify, paraDate } = require('../util');
 const { pagina, ranking, emObras, modalErro, urlPost, SECOES, PLATAFORMAS, OUTRAS } = require('./layout');
 const { CORES, quantos } = require('../chat');
 
@@ -29,9 +29,20 @@ function inicio(posts) {
     : `                <div class="banner"><span class="chapeu">EM BREVE</span><strong>O primeiro post tá <em>no forno</em></strong></div>`;
 
   return pagina({
-    titulo: 'HB Hub',
-    descricao: 'O cantinho do HB na internet: blog, coleções, opiniões e projetos.',
+    titulo: 'HB Hub :: o cantinho do HB na internet',
+    descricao: 'O cantinho do HB na internet: blog sobre games, tecnologia e open source, coleções de videogames, opiniões e projetos.',
     aqui: 'inicio',
+    seo: {
+      caminho: '/',
+      jsonld: {
+        '@context': 'https://schema.org',
+        '@type': 'WebSite',
+        name: 'HB Hub',
+        alternateName: 'O cantinho do HB na internet',
+        url: cfg.SITE_URL + '/',
+        inLanguage: 'pt-BR',
+      },
+    },
     miolo: `                <h1 class="bem-vindo">Bem-vindo!</h1>
 
 ${banner}
@@ -87,6 +98,12 @@ function nuvemTags(posts) {
 
 const POR_PAGINA = 10;
 
+function resumoAutomatico(conteudo) {
+  const t = textoPuro(conteudo);
+  if (t.length <= 155) return t;
+  return t.slice(0, 155).replace(/\s+\S*$/, '') + '...';
+}
+
 function paginacao(base, atual, total) {
   const paginas = Math.ceil(total / POR_PAGINA);
   if (paginas <= 1) return '';
@@ -116,10 +133,16 @@ ${ranking(posts.slice(inicioPag, inicioPag + POR_PAGINA))}
       : 'Nada por aqui ainda. Volte mais tarde!');
 
   return pagina({
-    titulo: secao === 'blog' ? 'HB Blog' : `${nome} :: HB Hub`,
-    descricao: `${nome} do HB Hub.`,
+    titulo: (secao === 'blog' ? 'Blog do HB' : `${nome} :: HB Hub`) + (numPagina > 1 ? ` (página ${numPagina})` : ''),
+    descricao: {
+      blog: 'Todos os posts do blog do HB: experiências, games, tecnologia, open source e o que mais der na telha.',
+      opinioes: 'Opiniões do HB sobre jogos, filmes, livros e o que mais der na telha.',
+      projetos: 'Os projetos do HB.',
+    }[secao],
     aba: secao,
     aqui: secao === 'blog' ? 'blog-todos' : secao,
+    noindex: !posts.length, // seção "em construção" é conteúdo raso: não indexa
+    seo: { caminho: `/${secao}${numPagina > 1 ? `?pagina=${numPagina}` : ''}` },
     miolo: `                <h1 class="bem-vindo">${secao === 'blog' ? 'HB Blog' : nome}</h1>
 
                 <p>${intro}</p>
@@ -134,6 +157,8 @@ function porTag(tag, posts) {
     descricao: `Posts do HB Hub com a tag ${tag}.`,
     aba: 'blog',
     aqui: 'blog-todos',
+    noindex: true,
+    seo: { caminho: `/tag/${slugify(tag)}` },
     miolo: `                <div class="migalhas"><a href="/">Início</a> &raquo; <a href="/blog">Blog</a> &raquo; Tag</div>
                 <h1 class="bem-vindo">Tag: ${esc(tag)}</h1>
 
@@ -151,10 +176,37 @@ function post(p, { anterior, proximo, previa = false } = {}) {
     ? `\n    <div class="faixa-previa">PRÉ-VISUALIZAÇÃO &middot; ${p.status === 'publicado' ? 'publicado' : 'rascunho'} &middot; só você tá vendo &middot; <a href="/admin/editar/${p.id}">voltar pro editor</a></div>`
     : '';
 
+  const descricao = p.resumo || resumoAutomatico(p.conteudo);
+  const img = ((p.html.match(/<img src="([^"]+)"/) || [])[1] || '').replace(/&amp;/g, '&') || undefined;
+  const url = cfg.SITE_URL + urlPost(p);
+  const publicado = p.publicado_em ? paraDate(p.publicado_em).toISOString() : undefined;
   return pagina({
     titulo: `${p.titulo} :: HB ${p.secao === 'blog' ? 'Blog' : 'Hub'}`,
-    descricao: p.resumo,
+    descricao,
     aba: p.secao,
+    seo: {
+      caminho: urlPost(p),
+      tipo: 'article',
+      imagem: img && (img.startsWith('http') ? img : cfg.SITE_URL + img),
+      publicado,
+      modificado: p.atualizado_em,
+      tags: tagsDe(p),
+      jsonld: {
+        '@context': 'https://schema.org',
+        '@type': 'BlogPosting',
+        headline: p.titulo,
+        description: descricao,
+        datePublished: publicado,
+        dateModified: p.atualizado_em,
+        author: { '@type': 'Person', name: 'HB', url: cfg.SITE_URL + '/#sobre' },
+        publisher: { '@type': 'Person', name: 'HB', url: cfg.SITE_URL + '/' },
+        mainEntityOfPage: url,
+        url,
+        image: img ? [img.startsWith('http') ? img : cfg.SITE_URL + img] : [cfg.SITE_URL + '/img/og-hbhub.png'],
+        keywords: tagsDe(p).join(', ') || undefined,
+        inLanguage: 'pt-BR',
+      },
+    },
     aqui: `post-${p.id}`,
     direita: false,
     noindex: previa,
@@ -190,9 +242,10 @@ function grade(itens) {
 function colecoes() {
   return pagina({
     titulo: 'Coleções :: HB Hub',
-    descricao: 'As coleções do HB: videogames, livros, filmes e jogos de PC.',
+    descricao: 'As coleções do HB: videogames (PS1, PS2, PS3, PS4, Xbox, N64, Wii), livros, filmes e jogos de PC.',
     aba: 'colecoes',
     aqui: 'colecoes',
+    seo: { caminho: '/colecoes' },
     miolo: `                <h1 class="bem-vindo">Coleções</h1>
 
                 <p>Minha estante virtual: tudo que eu coleciono, organizado por plataforma. Escolha uma e divirta-se
@@ -220,6 +273,8 @@ function colecao(chave) {
     descricao: `Coleção de ${nome} do HB.`,
     aba: 'colecoes',
     aqui: chave,
+    noindex: true, // ainda "em construção"
+    seo: { caminho: `/colecoes/${chave}` },
     miolo: `                <h1 class="bem-vindo">Coleção: ${nome}</h1>
 
 ${emObras('Em construção', 'Tô catalogando essa coleção. Volte mais tarde que vai ter lista, foto e história de cada item.')}
@@ -236,6 +291,7 @@ function salaChat() {
     descricao: 'A sala de bate-papo do HB Hub, como nos velhos tempos.',
     aba: 'chat',
     aqui: 'chat',
+    seo: { caminho: '/chat' },
     direita: false,
     scripts: ['/js/avisos.js', '/chat/chat.js'],
     miolo: `                <h1 class="bem-vindo">Bate-papo</h1>

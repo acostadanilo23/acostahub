@@ -16,6 +16,7 @@ const TIPOS = {
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
   '.gif': 'image/gif',
+  '.ico': 'image/x-icon',
   '.pdf': 'application/pdf',
   '.zip': 'application/zip',
   '.mp3': 'audio/mpeg',
