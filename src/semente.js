@@ -52,7 +52,7 @@ module.exports = function semente() {
     slug: 'minha-primeira-contribuicao-open-source',
     titulo: 'Minha Primeira Contribuição Open Source',
     resumo: 'Como eu revisei a tradução PT-BR e ES do xerabora, um companion de RetroAchievements pro PS2.',
-    tldr: 'vi o vídeo do HardLevel\nachei o xerabora no GitHub\nofereci ajuda numa issue\nrevisei PT-BR (e ES!)\nabri o PR 🎉',
+    tldr: 'vi o vídeo do HardLevel\nachei o xerabora no GitHub\nofereci ajuda numa issue\nrevisei PT-BR (e ES!)\nabri o PR',
     conteudo: CONTEUDO,
     html: md.renderizar(CONTEUDO),
     minutos: minutosLeitura(md.textoPuro(CONTEUDO)),

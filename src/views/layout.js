@@ -97,7 +97,7 @@ const direitaHtml = () => `
 
                 <section class="caixa">
                     <div class="bilhete">
-                        <h4>to-do &#9829;</h4>
+                        <h4>to-do</h4>
                         <ul>
                             <li><s>fazer o site</s></li>
                             <li><s>primeiro post</s></li>
@@ -125,7 +125,6 @@ const direitaHtml = () => `
                         <a class="b88 b-esp" href="/feed.xml">RSS feed</a>
                         <a class="b88 b-nojs" href="/chat">Bate-papo 24h</a>
                         <span class="b88 b-800">Melhor em 800x600</span>
-                        <span class="b88 b-mao">feito à mão &#9829;</span>
                         <span class="b88 b-html">HTML + CSS</span>
                         <span class="b88 b-br">Feito no Brasil</span>
                     </div>
@@ -142,7 +141,7 @@ function pagina({ titulo, descricao = '', aba = '', aqui = '', miolo, direita = 
     `Bate-papo aberto: ${chat.quantos()} na sala agora`,
     '0 cookies, 0 rastreadores',
     'Melhor visto em 800x600',
-  ].join('<i>&#9733;</i>');
+  ].join('<i>|</i>');
 
   return `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -163,7 +162,7 @@ function pagina({ titulo, descricao = '', aba = '', aqui = '', miolo, direita = 
     <div id="tudo">
 
         <div id="faixa-topo">
-            <span>&#9733; o cantinho do HB na internet &#9733; feito à mão desde 2026</span>
+            <span>o cantinho do HB na internet desde 2026</span>
             <span><a href="/#sobre">Sobre</a> | <a href="mailto:${cfg.EMAIL}">Contato</a></span>
         </div>
 
@@ -207,7 +206,7 @@ ${direita ? direitaHtml() : ''}
                 <a href="mailto:${cfg.EMAIL}">Contato</a>
                 <a href="/admin">Webmaster</a>
             </nav>
-            <p>&copy; 2026 HB Hub &middot; feito à mão com HTML, CSS e teimosia</p>
+            <p>&copy; 2026 HB Hub &middot; HTML, CSS e teimosia</p>
             <p>0 cookies de rastreio &middot; 0 rastreadores &middot; contador caseiro que não guarda seu IP</p>
         </footer>
 
@@ -251,7 +250,7 @@ function modalErro({ titulo = 'Erro', mensagem, codigo = '', okHref = '/', okTex
         <div class="modal-erro aberto" role="alertdialog" aria-modal="true" aria-labelledby="modal-erro-titulo" aria-describedby="modal-erro-texto">
             <div class="janela-titulo"><span id="modal-erro-titulo">${esc(titulo)}</span><a class="fechar" href="#fechou-erro" aria-label="Fechar">&times;</a></div>
             <div class="modal-corpo">
-                <div class="modal-icone" aria-hidden="true">&#10006;</div>
+                <div class="modal-icone" aria-hidden="true">X</div>
                 <div class="modal-textos">
                     <p id="modal-erro-texto">${mensagem}</p>${codigo ? `
                     <p class="modal-codigo">Código do erro: <code>${esc(codigo)}</code></p>` : ''}
@@ -265,7 +264,7 @@ function modalErro({ titulo = 'Erro', mensagem, codigo = '', okHref = '/', okTex
 function emObras(chamada, texto) {
   return `                <div class="em-obras">
                     <div>
-                        <strong>&#128679; ${chamada} &#128679;</strong>
+                        <strong>${chamada}</strong>
                         <p>${texto}</p>
                     </div>
                 </div>`;

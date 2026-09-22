@@ -10,9 +10,9 @@ Blog completo com painel de administração, editor de posts e anexos.
   backup local do que não foi salvo e atalhos (Ctrl+S, Ctrl+B, Ctrl+I, Ctrl+K).
 - RSS em `/feed.xml`, tags, paginação e seções (Blog, Opiniões, Projetos).
 - **Contador de visitas de verdade**, sem cookie e sem guardar IP (veja abaixo), com gráfico no painel.
-- **Bate-papo** em `/chat`, estilo Bate-Papo UOL: apelido e cor, "fala para / sorri para / grita com...",
-  "reservadamente", lista de quem está na sala, som quando falam com você. Tempo real com Server-Sent Events.
-  O webmaster logado entra com ★, pode usar o apelido "HB", apagar mensagens e expulsar gente (1 hora).
+- **Bate-papo** em `/chat`, simples: apelido, cor e mensagem, com a lista de quem está na sala
+  (clicar num nome coloca `@nome` na mensagem, e quem é chamado vê a linha destacada). Tempo real com Server-Sent Events.
+  O webmaster logado entra com o selo ADM, pode usar o apelido "HB", apagar mensagens e expulsar gente (1 hora).
   As mensagens ficam só na memória: reiniciou o servidor, a sala zera.
 
 Precisa de **Node 22.13 ou mais novo** (recomendado: 24).
@@ -57,6 +57,9 @@ Rode **uma instância só** (o bate-papo e as travas de login ficam na memória 
 Pra gerar a senha dentro do container: `docker compose run --rm hbhub node tools/criar-senha.js`.
 
 ### Backup
+
+Cópia consistente do banco com o site no ar: `docker exec hbhub node tools/backup-db.js /tmp/blog.db`
+(depois `docker cp hbhub:/tmp/blog.db .`).
 
 Tudo que importa fica no volume `hbhub-dados` (banco + anexos):
 

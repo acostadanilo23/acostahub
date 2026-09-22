@@ -8,13 +8,11 @@
   const dentro = $('#dentro');
   const msgs = $('#msgs');
   const lista = $('#lista');
-  const para = $('#para');
   const texto = $('#texto');
   const MAX_MSGS = 200;
 
   let eu = null; // { t, apelido, cor, adm }
   let fonte = null;
-  let audio = null;
 
   const guardar = (k, v) => { try { v == null ? sessionStorage.removeItem(k) : sessionStorage.setItem(k, v); } catch { /* ok */ } };
   const ler = (k) => { try { return sessionStorage.getItem(k); } catch { return null; } };
@@ -72,12 +70,17 @@
     $('#carregando').hidden = true;
     entrada.hidden = true;
     dentro.hidden = false;
-    $('#eu').textContent = (eu.adm ? '★ ' : '') + eu.apelido;
+    $('#eu').replaceChildren(...apelido(eu.apelido, eu.adm));
     $('#eu').style.color = eu.hex || '';
     texto.focus();
   }
 
   // ------------------------------------------------------------ mensagens
+  // apelido + selo ADM do webmaster (texto, montado sem innerHTML)
+  function apelido(nome, adm) {
+    return adm ? [nome, el('span', 'selo-adm', 'ADM')] : [nome];
+  }
+
   function pertoDoFim() {
     return msgs.scrollHeight - msgs.scrollTop - msgs.clientHeight < 60;
   }
@@ -93,69 +96,51 @@
       return li;
     }
 
-    const comigo = eu && (m.para === eu.apelido || m.de === eu.apelido);
-    if (m.reservado) li.classList.add('reservado');
-    if (eu && m.para === eu.apelido) li.classList.add('pra-mim');
+    // alguém escreveu @meu-apelido? a linha fica destacada
+    if (eu && m.de !== eu.apelido && m.texto.toLowerCase().includes('@' + eu.apelido.toLowerCase())) li.classList.add('pra-mim');
 
-    const de = el('b', 'nick', (m.adm ? '★ ' : '') + m.de);
+    const de = el('b', 'nick');
+    de.append(...apelido(m.de, m.adm));
     de.style.color = m.cor;
-    de.addEventListener('click', () => escolherPara(m.de));
-    li.append(de, ` ${m.reservado ? 'reservadamente ' : ''}${m.acao} `);
-    const alvo = el('b', 'nick', m.para);
-    if (m.para !== 'Todos') alvo.addEventListener('click', () => escolherPara(m.para));
-    li.append(alvo, ': ', el('span', 'txt', m.texto));
+    de.addEventListener('click', () => chamar(m.de));
+    li.append(de, ': ', el('span', 'txt', m.texto));
 
-    if (eu && eu.adm && !m.reservado) {
+    if (eu && eu.adm) {
       const x = el('button', 'mod', 'apagar');
       x.type = 'button';
       x.addEventListener('click', () => moderar({ acao: 'apagar', id: m.id }));
       li.append(x);
     }
-    if (!comigo) li.classList.add('outros');
     return li;
   }
 
-  function adicionar(m, { rolar = true, somar = true } = {}) {
+  function adicionar(m, { rolar = true } = {}) {
     const estavaNoFim = pertoDoFim();
     msgs.append(linha(m));
     while (msgs.children.length > MAX_MSGS) msgs.firstChild.remove();
     if (rolar && estavaNoFim) msgs.scrollTop = msgs.scrollHeight;
-    if (somar && eu && m.tipo === 'msg' && m.para === eu.apelido && m.de !== eu.apelido) bip();
-  }
-
-  function bip() {
-    if (!$('#som').checked) return;
-    try {
-      audio = audio || new AudioContext();
-      const o = audio.createOscillator();
-      const g = audio.createGain();
-      o.type = 'square';
-      o.frequency.setValueAtTime(880, audio.currentTime);
-      o.frequency.setValueAtTime(1320, audio.currentTime + 0.08);
-      g.gain.setValueAtTime(0.06, audio.currentTime);
-      g.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + 0.25);
-      o.connect(g).connect(audio.destination);
-      o.start();
-      o.stop(audio.currentTime + 0.25);
-    } catch { /* sem som, tudo bem */ }
   }
 
   // ------------------------------------------------------------ quem está na sala
-  function escolherPara(apelido) {
-    if (!eu || apelido === eu.apelido) return;
-    if ([...para.options].some((o) => o.value === apelido)) para.value = apelido;
+  // clicar num apelido coloca "@apelido " na mensagem
+  function chamar(nome) {
+    if (!eu || nome === eu.apelido) return;
+    const marca = `@${nome} `;
+    if (!texto.value.includes(marca)) texto.value = marca + texto.value;
     texto.focus();
+    texto.setSelectionRange(texto.value.length, texto.value.length);
   }
 
   function atualizarLista(pessoas) {
     $('#sala-online').textContent = `${pessoas.length} na sala`;
     lista.replaceChildren(...pessoas.map((p) => {
       const li = el('li');
-      const b = el('button', 'nick', (p.adm ? '★ ' : '') + p.apelido);
+      const b = el('button', 'nick');
+      b.append(...apelido(p.apelido, p.adm));
       b.type = 'button';
       b.style.color = p.cor;
-      b.title = p.apelido === eu.apelido ? 'você' : `falar com ${p.apelido}`;
-      b.addEventListener('click', () => escolherPara(p.apelido));
+      b.title = p.apelido === eu.apelido ? 'você' : `chamar ${p.apelido}`;
+      b.addEventListener('click', () => chamar(p.apelido));
       li.append(b);
       if (eu.adm && !p.adm) {
         const x = el('button', 'mod', 'expulsar');
@@ -167,11 +152,6 @@
       }
       return li;
     }));
-
-    const atual = para.value;
-    const opcoes = [new Option('Todos', 'todos'), ...pessoas.filter((p) => p.apelido !== eu.apelido).map((p) => new Option(p.apelido, p.apelido))];
-    para.replaceChildren(...opcoes);
-    para.value = opcoes.some((o) => o.value === atual) ? atual : 'todos';
   }
 
   async function moderar(dados) {
@@ -188,7 +168,7 @@
       try { d = JSON.parse(ev.data); } catch { return; }
       if (d.tipo === 'historico') {
         msgs.replaceChildren();
-        d.msgs.forEach((m) => adicionar(m, { rolar: false, somar: false }));
+        d.msgs.forEach((m) => adicionar(m, { rolar: false }));
         msgs.scrollTop = msgs.scrollHeight;
       } else if (d.tipo === 'msg' || d.tipo === 'sistema') {
         adicionar(d);
@@ -246,7 +226,7 @@
     const botao = $('#falar button.botao');
     botao.disabled = true;
     try {
-      await post('/chat/enviar', { t: eu.t, texto: t, para: para.value, acao: $('#acao').value, reservado: $('#reservado').checked });
+      await post('/chat/enviar', { t: eu.t, texto: t });
       texto.value = '';
     } catch (err) {
       if (err.status === 401) return largar('Você caiu da sala. Entra de novo!', true);

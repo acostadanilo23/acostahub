@@ -17,7 +17,7 @@
     dlg.innerHTML = `
       <div class="janela-titulo"><span id="modal-js-titulo">Erro</span><button type="button" class="fechar" aria-label="Fechar">&times;</button></div>
       <div class="modal-corpo">
-        <div class="modal-icone" aria-hidden="true">&#10006;</div>
+        <div class="modal-icone" aria-hidden="true">X</div>
         <div class="modal-textos">
           <ul class="modal-lista"></ul>
           <details class="modal-detalhes"><summary>Detalhes técnicos</summary><pre></pre></details>

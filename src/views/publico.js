@@ -2,9 +2,9 @@ const cfg = require('../config');
 const { esc } = require('../markdown');
 const { dataBR, tagsDe, slugify } = require('../util');
 const { pagina, ranking, emObras, modalErro, urlPost, SECOES, PLATAFORMAS, OUTRAS } = require('./layout');
-const { CORES, VERBOS, quantos } = require('../chat');
+const { CORES, quantos } = require('../chat');
 
-const AVATAR = '<svg viewBox=\"0 0 14 13\" shape-rendering=\"crispEdges\" aria-hidden=\"true\"><path fill=\"#000\" d=\"M4 0h6v1h-6zM2 1h2v1h-2zM10 1h2v1h-2zM1 2h1v1h-1zM12 2h1v1h-1zM1 3h1v1h-1zM12 3h1v1h-1zM0 4h14v1h-14zM0 5h1v1h-1zM2 5h1v1h-1zM4 5h2v1h-2zM8 5h1v1h-1zM10 5h2v1h-2zM13 5h1v1h-1zM0 6h1v1h-1zM3 6h2v1h-2zM9 6h2v1h-2zM13 6h1v1h-1zM0 7h1v1h-1zM13 7h1v1h-1zM0 8h1v1h-1zM3 8h1v1h-1zM10 8h1v1h-1zM13 8h1v1h-1zM1 9h1v1h-1zM4 9h6v1h-6zM12 9h1v1h-1zM1 10h1v1h-1zM12 10h1v1h-1zM2 11h2v1h-2zM10 11h2v1h-2zM4 12h6v1h-6z\"/><path fill=\"#ffd21a\" d=\"M4 1h6v1h-6zM2 2h10v1h-10zM2 3h10v1h-10zM1 5h1v1h-1zM6 5h2v1h-2zM12 5h1v1h-1zM1 6h2v1h-2zM5 6h4v1h-4zM11 6h2v1h-2zM1 7h12v1h-12zM1 8h2v1h-2zM4 8h6v1h-6zM11 8h2v1h-2zM2 9h2v1h-2zM10 9h2v1h-2zM2 10h10v1h-10zM4 11h6v1h-6z\"/><path fill=\"#fff\" d=\"M3 5h1v1h-1zM9 5h1v1h-1z\"/></svg>';
+const AVATAR = '<b>H</b><i>B</i>'; // monograma, igual ao logo
 
 const etiquetas = (tags) => tags.map((t, i) =>
   `<a class="etiqueta${['', ' azul', ' verde'][i % 3]}" href="/tag/${slugify(t)}">${esc(t)}</a>`).join('');
@@ -40,10 +40,10 @@ ${banner}
                     e experiências no meu blog, minhas viagens e projetos.</p>
 
                 <div class="ladrilhos">
-                    <a class="l-blog" href="/blog"><span>&#9998;</span>Blog</a>
-                    <a class="l-colecoes" href="/colecoes"><span>&#9733;</span>Coleções</a>
-                    <a class="l-opinioes" href="/opinioes"><span>&#9835;</span>Opiniões</a>
-                    <a class="l-projetos" href="/projetos"><span>&#9881;</span>Projetos</a>
+                    <a class="l-blog" href="/blog">Blog</a>
+                    <a class="l-colecoes" href="/colecoes">Coleções</a>
+                    <a class="l-opinioes" href="/opinioes">Opiniões</a>
+                    <a class="l-projetos" href="/projetos">Projetos</a>
                 </div>
 
                 <section class="painel">
@@ -231,7 +231,6 @@ ${emObras('Em construção', 'Tô catalogando essa coleção. Volte mais tarde q
 function salaChat() {
   const cores = CORES.map((c, i) =>
     `<label style="--cor:${c}"><input type="radio" name="cor" value="${i}"${i === 0 ? ' checked' : ''}><span></span></label>`).join('');
-  const verbos = Object.entries(VERBOS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
   return pagina({
     titulo: 'Bate-papo :: HB Hub',
     descricao: 'A sala de bate-papo do HB Hub, como nos velhos tempos.',
@@ -242,10 +241,10 @@ function salaChat() {
     miolo: `                <h1 class="bem-vindo">Bate-papo</h1>
 
                 <div class="sala" id="sala">
-                    <div class="sala-titulo"><span>&#128172; Bate-Papo do HB &middot; Sala Anos 2000</span><b id="sala-online">${quantos()} na sala</b></div>
+                    <div class="sala-titulo"><span>Bate-Papo do HB &middot; Sala Anos 2000</span><b id="sala-online">${quantos()} na sala</b></div>
 
                     <form class="sala-entrada" id="entrada" hidden>
-                        <p>Escolhe um apelido e uma cor e entra. Sem cadastro, sem senha. Seja legal: o webmaster <b class="estrela">&#9733;</b> pode expulsar quem apelar.</p>
+                        <p>Escolhe um apelido e uma cor e entra. Sem cadastro, sem senha. Seja legal: o webmaster (<b class="selo-adm">ADM</b>) pode expulsar quem apelar.</p>
                         <label class="sala-campo">Apelido <input id="apelido" maxlength="20" required autocomplete="nickname" placeholder="ex: gamer_2003"></label>
                         <div class="sala-cores" role="radiogroup" aria-label="Cor do apelido">${cores}</div>
                         <button class="botao">Entrar na sala &#8250;</button>
@@ -261,16 +260,11 @@ function salaChat() {
                         <form class="sala-falar" id="falar">
                             <div class="sala-linha">
                                 <b id="eu"></b>
-                                <select id="acao" aria-label="Ação">${verbos}</select>
-                                <select id="para" aria-label="Para quem"><option value="todos">Todos</option></select>
-                                <label><input type="checkbox" id="reservado"> reservadamente</label>
-                            </div>
-                            <div class="sala-linha">
                                 <input id="texto" maxlength="300" autocomplete="off" placeholder="digite sua mensagem e aperte Enter" aria-label="Mensagem">
                                 <button class="botao">Enviar</button>
                             </div>
                             <div class="sala-linha pequena">
-                                <label><input type="checkbox" id="som" checked> som quando falarem com você</label>
+                                <span></span>
                                 <button type="button" id="sair" class="link-sair">sair da sala</button>
                             </div>
                         </form>
@@ -281,7 +275,7 @@ function salaChat() {
                 </div>
 
                 <p class="sala-regras"><b>Regras da casa:</b> nada de ofensa, spam ou link suspeito. As mensagens não ficam
-                    guardadas: quando o servidor reinicia, a sala começa do zero. Clica num apelido da lista pra falar com a pessoa.</p>`,
+                    guardadas: quando o servidor reinicia, a sala começa do zero. Clica num apelido da lista pra chamar a pessoa (@apelido).</p>`,
   });
 }
 

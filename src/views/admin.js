@@ -34,7 +34,7 @@ function barra(atual = '') {
         <nav>
             <a href="/admin"${atual === 'posts' ? ' class="aqui"' : ''}>Posts</a>
             <a href="/admin/novo"${atual === 'novo' ? ' class="aqui"' : ''}>+ Escrever</a>
-            <a href="/" target="_blank">Ver site &#8599;</a>
+            <a href="/" target="_blank">Ver site</a>
             <form method="post" action="/admin/sair"><button>Sair</button></form>
         </nav>
     </header>`;
@@ -43,9 +43,9 @@ function barra(atual = '') {
 function login(erro = '', usuario = '') {
   return casca('Entrar', `    <main class="janela-login">
         <div class="janela">
-            <div class="janela-titulo"><span>&#128274; Área restrita</span><i>&times;</i></div>
+            <div class="janela-titulo"><span>Área restrita</span><i>&times;</i></div>
             <form class="janela-corpo" method="post" action="/admin/entrar">
-                <p><b>Só o webmaster passa daqui.</b><br>Se você não é o HB, volte pro <a href="/">site</a>. &#128064;</p>
+                <p><b>Só o webmaster passa daqui.</b><br>Se você não é o HB, volte pro <a href="/">site</a>.</p>
                 <label>Usuário <input name="usuario" value="${esc(usuario)}" autocomplete="username" required autofocus></label>
                 <label>Senha <input name="senha" type="password" autocomplete="current-password" required></label>
                 <button class="btn">Entrar &#8250;</button>
@@ -160,17 +160,17 @@ function editor(p) {
                 <button type="button" data-f="h2" title="Intertítulo">H2</button>
                 <button type="button" data-f="h3" title="Subtítulo">H3</button>
                 <span class="sep"></span>
-                <button type="button" data-f="link" title="Link (Ctrl+K)">&#128279;</button>
+                <button type="button" data-f="link" title="Link (Ctrl+K)">link</button>
                 <button type="button" data-f="lista" title="Lista">&#8226; lista</button>
                 <button type="button" data-f="numerada" title="Lista numerada">1. lista</button>
                 <button type="button" data-f="citacao" title="Citação">&ldquo; &rdquo;</button>
                 <button type="button" data-f="codigo" title="Código">&lt;/&gt;</button>
                 <button type="button" data-f="bloco" title="Bloco de código">{ }</button>
                 <button type="button" data-f="fluxo" title="Caixa verde de terminal">&gt;_</button>
-                <button type="button" data-f="aviso" title="Post-it amarelo">&#128221;</button>
+                <button type="button" data-f="aviso" title="Post-it amarelo">post-it</button>
                 <button type="button" data-f="linha" title="Linha horizontal">&mdash;</button>
                 <span class="sep"></span>
-                <button type="button" data-f="anexo" class="destacado" title="Enviar imagem ou arquivo">&#128206; Anexar</button>
+                <button type="button" data-f="anexo" class="destacado" title="Enviar imagem ou arquivo">Anexar</button>
                 <span class="ed-modos">
                     <button type="button" data-modo="escrever">Escrever</button>
                     <button type="button" data-modo="dividido">Dividido</button>
@@ -181,7 +181,7 @@ function editor(p) {
             <div class="ed-area" id="area">
                 <textarea id="conteudo" name="conteudo" spellcheck="true" placeholder="Escreve aqui... (dá pra arrastar ou colar imagens direto)">${esc(p.conteudo)}</textarea>
                 <div class="ed-previa"><article id="previa" class="post"></article></div>
-                <div class="ed-soltar">Solta o arquivo aqui &#128229;</div>
+                <div class="ed-soltar">Solta o arquivo aqui</div>
             </div>
 
             <div class="ed-status"><span id="contagem">0 palavras</span><span id="estado">${novo ? 'post novo, ainda não salvo' : 'tudo salvo'}</span></div>
@@ -211,7 +211,7 @@ function editor(p) {
             <section class="caixa">
                 <h3>Anexos</h3>
                 <input type="file" id="arquivo" multiple hidden accept="image/webp,image/png,image/jpeg,image/gif,.pdf,.zip,.mp3,.txt">
-                <button type="button" class="btn azul largo" data-f="anexo">&#128206; Enviar arquivos</button>
+                <button type="button" class="btn azul largo" data-f="anexo">Enviar arquivos</button>
                 <label class="ed-check"><input type="checkbox" id="otimizar" checked> otimizar imagens (WebP, até 1280px)</label>
                 <small>imagens, PDF, ZIP, MP3, TXT &middot; até ${cfg.UPLOAD_MAX_MB} MB</small>
                 <ul id="biblioteca" class="biblioteca"><li class="vazio">carregando&hellip;</li></ul>

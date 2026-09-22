@@ -249,9 +249,9 @@ function iniciarEditor(form) {
       a.textContent = txt;
       links.append(' · ', a);
     };
-    if (post.id) link(`/admin/ver/${post.id}`, 'prévia ↗');
+    if (post.id) link(`/admin/ver/${post.id}`, 'prévia');
     const agendado = post.status === 'publicado' && post.publicado_em && new Date(post.publicado_em) > new Date();
-    if (post.status === 'publicado' && post.url && !agendado) link(post.url, 'ver no site ↗');
+    if (post.status === 'publicado' && post.url && !agendado) link(post.url, 'ver no site');
     if (agendado) links.append(` · agendado pra ${new Date(post.publicado_em).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}`);
     const excluir = $('#excluir-post');
     excluir.hidden = !post.id;
@@ -334,7 +334,7 @@ function iniciarEditor(form) {
     }
     const aviso = document.createElement('div');
     aviso.className = 'aviso-backup';
-    aviso.innerHTML = `&#9888; Tem uma versão não salva desse post de ${new Date(b.quando).toLocaleString('pt-BR')}.
+    aviso.innerHTML = `Atenção: tem uma versão não salva desse post de ${new Date(b.quando).toLocaleString('pt-BR')}.
       <button type="button" class="btn azul">Restaurar</button><button type="button" class="btn cinza">Descartar</button>`;
     form.prepend(aviso);
     const [restaurar, descartar] = $$('button', aviso);
@@ -358,7 +358,7 @@ function iniciarEditor(form) {
   function markdownDe(a) {
     const base = a.nome_original.replace(/\.[^.]+$/, '').replace(/[[\]]/g, '');
     if (IMG.test(a.arquivo) || /\.mp3$/i.test(a.arquivo)) return `![${base}](${a.url})`;
-    return `[📎 ${a.nome_original.replace(/[[\]]/g, '')}](${a.url})`;
+    return `[${a.nome_original.replace(/[[\]]/g, '')}](${a.url})`;
   }
 
   function itemBiblioteca(a) {
@@ -446,7 +446,7 @@ function iniciarEditor(form) {
   let contadorEnvio = 0;
   async function enviarArquivos(arquivos) {
     for (const bruto of arquivos) {
-      const marca = `⏳ enviando ${bruto.name}… [envio ${++contadorEnvio}]`;
+      const marca = `(enviando ${bruto.name}... envio ${++contadorEnvio})`;
       // imagem sozinha no parágrafo (vira figura) e cursor dois "enter" abaixo, pronto pra continuar
       bloco(marca + '\n', marca.length + 2);
 
@@ -457,7 +457,7 @@ function iniciarEditor(form) {
       $('.vazio', lista)?.remove();
       lista.prepend(li);
 
-      // troca o "⏳ enviando…" pelo resultado sem mexer no que a pessoa está fazendo.
+      // troca o "(enviando...)" pelo resultado sem mexer no que a pessoa está fazendo.
       // (não dá pra confiar no modo 'preserve' do setRangeText: com o cursor no fim do marcador
       // ele deixa o texto novo SELECIONADO, e a próxima tecla apagaria a imagem do post)
       const trocarMarca = (novo) => {

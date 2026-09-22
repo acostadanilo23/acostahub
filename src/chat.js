@@ -1,26 +1,10 @@
-// Bate-papo estilo anos 2000 (tipo o Bate-Papo UOL), em tempo real com Server-Sent Events.
+// Bate-papo simples: apelido + mensagem, em tempo real com Server-Sent Events.
 // Tudo fica em memória: reiniciou o servidor, a sala zera. Nada de mensagem guardada em banco.
 const crypto = require('node:crypto');
 const { slugify } = require('./util');
 const { FUSO } = require('./config');
 
 const CORES = ['#ff5e5e', '#ffcf33', '#66ff66', '#5ab0ff', '#ff7ad9', '#6fe0da', '#ff9f40', '#c9a0ff'];
-const VERBOS = {
-  fala: 'fala para',
-  pergunta: 'pergunta para',
-  responde: 'responde para',
-  sorri: 'sorri para',
-  ri: 'ri de',
-  concorda: 'concorda com',
-  discorda: 'discorda de',
-  grita: 'grita com',
-  murmura: 'murmura para',
-  suspira: 'suspira por',
-  flerta: 'flerta com',
-  desculpa: 'desculpa-se com',
-  surpreende: 'surpreende-se com',
-  fora: 'dá um fora em',
-};
 const RESERVADOS = ['hb', 'webmaster', 'admin', 'administrador', 'moderador', 'sistema', 'todos'];
 const MAX_PESSOAS = 150;
 const MAX_POR_IP = 4;
@@ -91,7 +75,7 @@ function entrar({ apelido, cor }, ip, adm) {
   if (!/^[\p{L}\p{N} _.\-]{2,20}$/u.test(apelido)) throw new ErroChat(400, 'Apelido precisa ter de 2 a 20 letras, números, espaço, ponto, _ ou -.');
   const k = chaveNome(apelido);
   if (!k) throw new ErroChat(400, 'Esse apelido não dá. Tenta outro.');
-  // "HB", "H.B", "hb_" e "webmaster123" ficam só pro dono (que ainda ganha a ★, que ninguém imita)
+  // "HB", "H.B", "hb_" e "webmaster123" ficam só pro dono (que ainda ganha o selo ADM, que ninguém imita)
   if (!adm && RESERVADOS.some((r) => k === r || (r.length > 3 && k.startsWith(r)))) {
     throw new ErroChat(400, 'Esse apelido é reservado. Escolhe outro.');
   }
@@ -165,31 +149,12 @@ function enviar(token, d) {
 
   const texto = String(d.texto || '').replace(/[\u0000-\u001f\u007f-\u009f​-‏‪-‮]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 300);
   if (!texto) throw new ErroChat(400, 'Mensagem vazia.');
-  const acao = VERBOS[d.acao] ? d.acao : 'fala';
-
-  let alvo = null;
-  if (d.para && d.para !== 'todos') {
-    alvo = porApelido(d.para);
-    if (!alvo || !alvo.anunciado) throw new ErroChat(404, `${d.para} não está mais na sala.`);
-    if (alvo === p) alvo = null;
-  }
-  const reservado = !!d.reservado && !!alvo;
   p.envios.push(agora);
 
-  const msg = {
-    tipo: 'msg', id: ++seq, hora: hora(),
-    de: p.apelido, cor: CORES[p.cor], adm: p.adm,
-    acao: VERBOS[acao], para: alvo ? alvo.apelido : 'Todos',
-    texto, reservado,
-  };
-  if (reservado) {
-    mandar(p, msg);
-    mandar(alvo, msg);
-  } else {
-    historico.push(msg);
-    if (historico.length > HISTORICO) historico.shift();
-    paraTodos(msg);
-  }
+  const msg = { tipo: 'msg', id: ++seq, hora: hora(), de: p.apelido, cor: CORES[p.cor], adm: p.adm, texto };
+  historico.push(msg);
+  if (historico.length > HISTORICO) historico.shift();
+  paraTodos(msg);
 }
 
 function sair(token) {
@@ -221,4 +186,4 @@ setInterval(() => {
 
 const quantos = () => listaOnline().length;
 
-module.exports = { ErroChat, CORES, VERBOS, entrar, pessoa, conectar, enviar, sair, apagar, expulsar, quantos };
+module.exports = { ErroChat, CORES, entrar, pessoa, conectar, enviar, sair, apagar, expulsar, quantos };
