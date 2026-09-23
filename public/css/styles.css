@@ -714,13 +714,13 @@ a.etiqueta:hover { color: #fff; background: #c00 }
   margin: 12px 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
+  gap: 8px;
 }
 .cat-item {
   display: flex;
   flex-direction: column;
-  padding: 8px;
+  padding: 6px;
   text-align: center;
   background: #111;
   border: 2px solid #000;
@@ -731,7 +731,7 @@ a.etiqueta:hover { color: #fff; background: #c00 }
   display: block;
   width: 100%;
   aspect-ratio: 1;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   background: #000 center / cover no-repeat;
   border: 1px solid #333;
 }
@@ -739,12 +739,12 @@ a.etiqueta:hover { color: #fff; background: #c00 }
   display: flex;
   align-items: center;
   justify-content: center;
-  font: 10px Verdana, sans-serif;
+  font: 9px Verdana, sans-serif;
   color: #555;
   text-transform: uppercase;
 }
-.cat-item strong { font: 900 13px/1.15 "Trebuchet MS", Verdana, sans-serif; color: #fff }
-.cat-item small { display: block; margin-top: 4px; font: 10px Verdana, sans-serif; color: #fc0 }
+.cat-item strong { font: 900 12px/1.15 "Trebuchet MS", Verdana, sans-serif; color: #fff; overflow-wrap: break-word }
+.cat-item small { display: block; margin-top: 3px; font: 10px Verdana, sans-serif; color: #fc0 }
 
 /* ---------- bate-papo ---------- */
 .sala-mini { text-align: center; font-size: 11px }
