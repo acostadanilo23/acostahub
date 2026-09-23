@@ -983,6 +983,7 @@ document.addEventListener('click', async (ev) => {
   const apagar = ev.target.closest('[data-apagar]');
   const mover = ev.target.closest('[data-mover]');
   const aprovar = ev.target.closest('[data-aprovar-recado]');
+  const aprovarComentario = ev.target.closest('[data-aprovar-comentario]');
   const apagarRecado = ev.target.closest('[data-apagar-recado]');
   const ativar = ev.target.closest('[data-ativar-enquete]');
   try {
@@ -993,6 +994,8 @@ document.addEventListener('click', async (ev) => {
       await api('POST', mover.dataset.mover, { direcao: mover.dataset.dir });
     } else if (aprovar) {
       await api('PUT', `/api/recados/${aprovar.dataset.aprovarRecado}`);
+    } else if (aprovarComentario) {
+      await api('PUT', `/api/comentarios/${aprovarComentario.dataset.aprovarComentario}`);
     } else if (apagarRecado) {
       if (!confirm(`Apagar o recado de ${apagarRecado.dataset.nome}?`)) return;
       await api('DELETE', `/api/recados/${apagarRecado.dataset.apagarRecado}`);

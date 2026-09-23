@@ -30,7 +30,7 @@ ${corpo}
 }
 
 function barra(atual = '') {
-  const pendentes = db.contarPendentes();
+  const pendentes = db.contarPendentes() + db.contarComentariosPendentes();
   return `    <header class="adm-barra">
         <a class="adm-logo" href="/admin"><b>H</b><i>B</i> <span>Painel do Webmaster</span></a>
         <nav>
@@ -93,7 +93,23 @@ function visitas(rel, online) {
         </section>`;
 }
 
-function painel(posts, anexos, rel, online) {
+const tamanho = (bytes) => (bytes < 1048576 ? `${Math.ceil(bytes / 1024)} KB` : `${(bytes / 1048576).toFixed(1)} MB`);
+
+function caixaBackup(b) {
+  const ultimo = b.ultimo ? `último: <b>${esc(b.ultimo.arquivo)}</b> em ${fmtQuando.format(new Date(b.ultimo.em))}` : 'nenhum backup feito ainda (o primeiro sai uns segundos depois do servidor subir)';
+  return `
+        <section class="painel">
+            <h2>Backup do banco <small>automático, um por dia, guarda os ${b.dias} últimos</small></h2>
+            <div class="dentro">
+                <p>${ultimo}</p>${b.erro ? `
+                <p class="aviso-erro">O último backup falhou (${fmtQuando.format(new Date(b.erro.em))}): ${esc(b.erro.erro)}</p>` : ''}
+                ${b.lista.length ? `<table class="adm-tabela"><tr><th>Arquivo (em data/backups)</th><th>Tamanho</th></tr>${b.lista.map((x) => `<tr><td>${esc(x.arquivo)}</td><td>${tamanho(x.tamanho)}</td></tr>`).join('')}</table>` : ''}
+                <small>Fica no mesmo volume do site: protege contra erro e dado corrompido, não contra perder o servidor. Os anexos (data/uploads) não entram.</small>
+            </div>
+        </section>`;
+}
+
+function painel(posts, anexos, rel, online, situacaoBackup) {
   const pub = posts.filter((p) => p.status === 'publicado').length;
   const bytes = anexos.reduce((s, a) => s + a.tamanho, 0);
   const linhas = posts.map((p) => `
@@ -115,7 +131,7 @@ function painel(posts, anexos, rel, online) {
             <div><b>${pub}</b>publicados</div>
             <div><b>${posts.length - pub}</b>rascunhos</div>
             <div><b>${anexos.length}</b>arquivos</div>
-            <div><b>${bytes < 1048576 ? `${Math.ceil(bytes / 1024)} KB` : `${(bytes / 1048576).toFixed(1)} MB`}</b>em anexos</div>
+            <div><b>${tamanho(bytes)}</b>em anexos</div>
         </div>
 
         <section class="painel">
@@ -125,6 +141,7 @@ function painel(posts, anexos, rel, online) {
             </table>` : '<p class="dentro">Nenhum post ainda. <a href="/admin/novo">Escreve o primeiro!</a></p>'}
         </section>
 ${visitas(rel, online)}
+${caixaBackup(situacaoBackup)}
     </main>`, { js: true });
 }
 
@@ -490,8 +507,22 @@ function colecaoItens(c, itens, anexos) {
 
 const fmtQuando = new Intl.DateTimeFormat('pt-BR', { timeZone: cfg.FUSO, dateStyle: 'short', timeStyle: 'short' });
 
-function recados(lista) {
+function recados(lista, comentarios) {
   const pendentes = lista.filter((r) => !r.aprovado).length;
+  const comentariosPendentes = comentarios.filter((c) => !c.aprovado).length;
+  const linhasComentarios = comentarios.map((c) => `
+                <tr>
+                    <td>${c.aprovado ? '<span class="sit publicado">no ar</span>' : '<span class="sit agendado">pendente</span>'}</td>
+                    <td>
+                        <span class="tit">${esc(c.nome)}</span><small>em <a href="${urlPost({ secao: c.post_secao, slug: c.post_slug })}#comentarios" target="_blank">${esc(c.post_titulo)}</a></small>
+                        <div class="recado-texto">${esc(c.mensagem)}</div>
+                    </td>
+                    <td>${fmtQuando.format(new Date(c.criado_em))}</td>
+                    <td class="acoes">
+                        ${c.aprovado ? '' : `<button type="button" class="link-acao" data-aprovar-comentario="${c.id}">aprovar</button>`}
+                        <button type="button" class="link-perigo" data-apagar="/api/comentarios/${c.id}" data-confirmar="Apagar o comentário de ${esc(c.nome)}?">apagar</button>
+                    </td>
+                </tr>`).join('');
   const linhas = lista.map((r) => `
                 <tr>
                     <td>${r.aprovado ? '<span class="sit publicado">no ar</span>' : '<span class="sit agendado">pendente</span>'}</td>
@@ -509,13 +540,19 @@ function recados(lista) {
   return casca('Recados', `${barra('recados')}
     <main class="adm-miolo">
         <div class="adm-numeros">
-            <div><b>${pendentes}</b>esperando aprovação</div>
+            <div><b>${pendentes}</b>recados esperando</div>
             <div><b>${lista.length - pendentes}</b>no livro</div>
-            <div><b>${lista.length}</b>no total</div>
-            <div><b>&nbsp;</b><a href="/livro-de-visitas" target="_blank">ver no site</a></div>
+            <div><b>${comentariosPendentes}</b>comentários esperando</div>
+            <div><b>${comentarios.length - comentariosPendentes}</b>comentários no ar</div>
         </div>
         <section class="painel">
-            <h2>Livro de visitas <small>recado só aparece no site depois de aprovado</small></h2>
+            <h2>Comentários dos posts <small>só aparecem no post depois de aprovados</small></h2>
+            ${comentarios.length ? `<table class="adm-tabela adm-recados">
+                <tr><th>Situação</th><th>Comentário</th><th>Quando</th><th></th></tr>${linhasComentarios}
+            </table>` : '<p class="dentro">Ninguém comentou ainda.</p>'}
+        </section>
+        <section class="painel">
+            <h2>Livro de visitas <small>recado só aparece no site depois de aprovado &middot; <a href="/livro-de-visitas" target="_blank">ver no site</a></small></h2>
             ${lista.length ? `<table class="adm-tabela adm-recados">
                 <tr><th>Situação</th><th>Recado</th><th>Quando</th><th></th></tr>${linhas}
             </table>` : '<p class="dentro">Ninguém assinou ainda.</p>'}

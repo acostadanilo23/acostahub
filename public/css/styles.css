@@ -802,6 +802,9 @@ a.etiqueta:hover { color: #fff; background: #c00 }
   border: 2px inset #444;
 }
 .form-recado textarea { resize: vertical }
+.form-recado input[name=resposta] { width: 9em }
+.desafio-cor { display: inline-block; width: 36px; height: 18px; vertical-align: -4px; border: 2px solid #000; outline: 1px solid #888 }
+.desafio-dica { display: block; margin: -4px 0 8px; font-size: 10px; color: #888 }
 .form-recado .armadilha { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden }
 .recados { list-style: none; margin: 0; padding: 0 }
 .recado { padding: 8px 0; border-bottom: 1px dotted #444 }
@@ -810,6 +813,30 @@ a.etiqueta:hover { color: #fff; background: #c00 }
 .recado-cab b { color: #fc3; font-size: 12px }
 .recado-cab span { float: right; font-size: 10px; color: #777 }
 .recado p { margin: 4px 0 0; overflow-wrap: anywhere }
+
+/* ---------- busca e arquivo ---------- */
+.busca-mini form { margin: 0 }
+.busca-mini input {
+  display: block;
+  width: 100%;
+  padding: 3px 4px;
+  font: 11px Verdana, sans-serif;
+  color: #000;
+  background: #fff;
+  border: 2px inset #ccc;
+}
+.form-busca { display: flex; gap: 8px; margin-bottom: 12px }
+.form-busca input {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 6px;
+  font: 13px Verdana, sans-serif;
+  color: #eee;
+  background: #000;
+  border: 2px inset #444;
+}
+.arquivo p { margin: 0 0 4px; line-height: 1.7 }
+.arquivo b { margin-right: 6px; font: bold 12px "Courier New", monospace; color: #3f3 }
 
 /* ---------- resultado da enquete ---------- */
 .resultado-enquete .opcao { display: grid; grid-template-columns: minmax(0, 1fr) 2fr auto; gap: 8px; align-items: center; margin-bottom: 6px }

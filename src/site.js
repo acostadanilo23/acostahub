@@ -62,6 +62,15 @@ function validarRecado(d) {
   return { nome, mensagem, site: urlExterna(d.site) };
 }
 
+// comentário de post: mesmas regras do recado, sem o campo de site
+function validarComentario(d) {
+  const nome = linha(d.nome, 40);
+  if (nome.length < 2) throw new ErroSite(400, 'Escreve seu nome (ou apelido).');
+  const mensagem = paragrafos(d.mensagem, 1000);
+  if (mensagem.length < 3) throw new ErroSite(400, 'Escreve um comentário.');
+  return { nome, mensagem };
+}
+
 // ------------------------------------------------------------ enquete
 
 const SEGREDO_VOTO = db.ajuste('segredo_enquete', () => crypto.randomBytes(32).toString('hex'));
@@ -165,7 +174,7 @@ function itemDoDia() {
 
 module.exports = {
   ErroSite, LUGARES, IMAGENS,
-  validarRecado, votar, enqueteComOpcoes, validarEnquete,
+  validarRecado, validarComentario, votar, enqueteComOpcoes, validarEnquete,
   validarStatus, validarTodo, validarMusica,
   validarMoldura, validarLink, validarNovidade,
   usosDoAnexo, itemDoDia,

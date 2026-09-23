@@ -13,6 +13,9 @@ const contador = require('./src/contador');
 const chat = require('./src/chat');
 const site = require('./src/site');
 const defesa = require('./src/defesa');
+const backup = require('./src/backup');
+const captcha = require('./src/captcha');
+const { buscar, MAX_TERMO } = require('./src/busca');
 const { servirPublico, mandarArquivo, dentro } = require('./src/estaticos');
 const publico = require('./src/views/publico');
 const admin = require('./src/views/admin');
@@ -243,7 +246,7 @@ rota('GET', '/(blog|opinioes|projetos)', (req, res, [secao], url) => {
   html(req, res, publico.listaSecao(secao, posts, pag));
 }, { contar: true });
 
-rota('GET', '/(blog|opinioes|projetos)/([a-z0-9-]+)', (req, res, [secao, slug]) => {
+rota('GET', '/(blog|opinioes|projetos)/([a-z0-9-]+)', (req, res, [secao, slug], url) => {
   const p = publicadoPorSlug(slug);
   if (!p) {
     const novo = db.postPorId(db.postPorSlugAntigo(slug) ?? 0);
@@ -251,9 +254,50 @@ rota('GET', '/(blog|opinioes|projetos)/([a-z0-9-]+)', (req, res, [secao, slug]) 
     return nao(req, res);
   }
   if (p.secao !== secao) return redirecionar(res, urlPost(p), 301);
+  const aviso = url.searchParams.has('comentado') ? 'Comentário enviado! Ele aparece aqui assim que o webmaster aprovar.' : '';
+  mostrarPost(req, res, p, { aviso });
+}, { contar: true });
+
+function mostrarPost(req, res, p, comentar = {}, status = 200) {
   const lista = db.publicados().filter((x) => x.secao === p.secao);
   const i = lista.findIndex((x) => x.id === p.id);
-  html(req, res, publico.post(p, { proximo: lista[i - 1], anterior: lista[i + 1] }));
+  html(req, res, publico.post(p, { proximo: lista[i - 1], anterior: lista[i + 1], comentar }), status);
+}
+
+const podeComentar = limitador(3, 10 * 60000);
+
+rota('POST', '/(blog|opinioes|projetos)/([a-z0-9-]+)/comentar', async (req, res, [secao, slug]) => {
+  const p = publicadoPorSlug(slug);
+  if (!p || p.secao !== secao) return nao(req, res);
+  const f = await lerForm(req);
+  const valores = { nome: f.get('nome') || '', mensagem: f.get('mensagem') || '' };
+  const enviado = `${urlPost(p)}?comentado#comentarios`;
+  // campo escondido: gente não vê, robô preenche. Finge que deu certo.
+  if (f.get('email')) return redirecionar(res, enviado, 303);
+  if (!podeComentar(ipDe(req))) {
+    return mostrarPost(req, res, p, { erro: 'Calma! Muitos comentários seguidos. Tenta de novo daqui a uns minutos.', valores }, 429);
+  }
+  if (!captcha.conferir(f.get('desafio'), f.get('resposta'))) return mostrarPost(req, res, p, { erro: ERRO_DESAFIO, valores }, 400);
+  let comentario;
+  try {
+    comentario = site.validarComentario(valores);
+  } catch (e) {
+    if (e instanceof site.ErroSite) return mostrarPost(req, res, p, { erro: e.message, valores }, e.status);
+    throw e;
+  }
+  db.inserirComentario({ post_id: p.id, ...comentario });
+  redirecionar(res, enviado, 303);
+});
+
+rota('GET', '/arquivo/(\\d{4})/(\\d{2})', (req, res, [ano, mes]) => {
+  const posts = db.publicados().filter((p) => p.publicado_em.startsWith(`${ano}-${mes}-`));
+  if (!posts.length) return nao(req, res);
+  html(req, res, publico.arquivoMes(ano, mes, posts));
+}, { contar: true });
+
+rota('GET', '/busca', (req, res, _, url) => {
+  const q = String(url.searchParams.get('q') || '').trim().slice(0, MAX_TERMO);
+  html(req, res, publico.busca(q, buscar(q)));
 }, { contar: true });
 
 rota('GET', '/tag/([a-z0-9-]+)', (req, res, [tag]) => {
@@ -276,6 +320,7 @@ rota('GET', '/colecoes/([a-z0-9-]+)/(\\d+)', (req, res, [slug, id]) => {
 // --- livro de visitas, enquete, links e novidades
 
 const podeAssinar = limitador(3, 10 * 60000);
+const ERRO_DESAFIO = 'Resposta errada no desafio anti-robô (ou a página ficou aberta tempo demais). Responde essa nova aí embaixo.';
 const podeVotar = limitador(20, 10 * 60000);
 
 rota('GET', '/livro-de-visitas', (req, res, _, url) => {
@@ -293,6 +338,7 @@ rota('POST', '/livro-de-visitas', async (req, res) => {
   if (!podeAssinar(ipDe(req))) {
     return html(req, res, publico.livroVisitas({ erro: 'Calma! Muitos recados seguidos. Tenta de novo daqui a uns minutos.', valores }), 429);
   }
+  if (!captcha.conferir(f.get('desafio'), f.get('resposta'))) return html(req, res, publico.livroVisitas({ erro: ERRO_DESAFIO, valores }), 400);
   let recado;
   try {
     recado = site.validarRecado(valores);
@@ -415,7 +461,7 @@ rota('POST', '/admin/sair', (req, res) => {
   redirecionar(res, '/', 303);
 });
 
-rota('GET', '/admin', (req, res) => html(req, res, admin.painel(db.todosPosts(), db.anexos(), contador.relatorio(), chat.quantos())), { restrito: true });
+rota('GET', '/admin', (req, res) => html(req, res, admin.painel(db.todosPosts(), db.anexos(), contador.relatorio(), chat.quantos(), backup.situacao())), { restrito: true });
 rota('GET', '/admin/colecoes', (req, res) => html(req, res, admin.colecoes(db.todasColecoesAdmin())), { restrito: true });
 rota('GET', '/admin/colecoes/(\\d+)', (req, res, [id]) => {
   const numId = Number(id);
@@ -425,7 +471,7 @@ rota('GET', '/admin/colecoes/(\\d+)', (req, res, [id]) => {
   const anexos = db.anexos();
   return html(req, res, admin.colecaoItens(c, itens, anexos));
 }, { restrito: true });
-rota('GET', '/admin/recados', (req, res) => html(req, res, admin.recados(db.recadosAdmin())), { restrito: true });
+rota('GET', '/admin/recados', (req, res) => html(req, res, admin.recados(db.recadosAdmin(), db.comentariosAdmin())), { restrito: true });
 rota('GET', '/admin/site', (req, res) => html(req, res, admin.site({
   status: db.lerAjuste('status', []),
   todo: db.lerAjuste('todo', []),
@@ -629,6 +675,15 @@ rota('PUT', '/api/recados/(\\d+)', (req, res, [id]) => {
 }, { restrito: true });
 rota('DELETE', '/api/recados/(\\d+)', (req, res, [id]) => {
   idOu404(db.excluirRecado(Number(id)), 'Esse recado não existe mais.');
+  json(req, res, { ok: true });
+}, { restrito: true });
+
+rota('PUT', '/api/comentarios/(\\d+)', (req, res, [id]) => {
+  idOu404(db.aprovarComentario(Number(id)), 'Esse comentário não existe mais.');
+  json(req, res, { ok: true });
+}, { restrito: true });
+rota('DELETE', '/api/comentarios/(\\d+)', (req, res, [id]) => {
+  idOu404(db.excluirComentario(Number(id)), 'Esse comentário não existe mais.');
   json(req, res, { ok: true });
 }, { restrito: true });
 
@@ -896,5 +951,6 @@ servidor.requestTimeout = 5 * 60 * 1000; // uploads grandes em conexão lenta
 servidor.headersTimeout = 15 * 1000; // quem manda os cabeçalhos a conta-gotas (slowloris) cai antes
 servidor.listen(cfg.PORTA, cfg.HOST, () => {
   console.log(`HB Hub no ar em http://${cfg.HOST === '0.0.0.0' ? 'localhost' : cfg.HOST}:${cfg.PORTA}`);
+  backup.iniciar();
   if (!cfg.ADMIN_SENHA_HASH) console.warn('AVISO: ADMIN_SENHA_HASH vazio no .env, o login fica desativado. Rode: npm run senha');
 });

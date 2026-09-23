@@ -91,6 +91,17 @@ db.exec(`
     criado_em TEXT NOT NULL
   );
 
+  -- comentários dos posts: igual ao livro de visitas, só aparece depois de aprovado
+  CREATE TABLE IF NOT EXISTS comentarios (
+    id        INTEGER PRIMARY KEY,
+    post_id   INTEGER NOT NULL REFERENCES posts (id) ON DELETE CASCADE,
+    nome      TEXT NOT NULL,
+    mensagem  TEXT NOT NULL,
+    aprovado  INTEGER NOT NULL DEFAULT 0,
+    criado_em TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS comentarios_post ON comentarios (post_id, aprovado);
+
   -- enquete: um voto por visitante (hash com segredo, sem cookie)
   CREATE TABLE IF NOT EXISTS enquetes (
     id        INTEGER PRIMARY KEY,
@@ -248,7 +259,7 @@ const q = {
   excluirItem: db.prepare(`DELETE FROM itens WHERE id = ?`),
   atualizarOrdemItem: db.prepare(`UPDATE itens SET ordem = ? WHERE id = ?`),
   itensComFoto: db.prepare(`SELECT i.id, i.titulo, c.nome AS colecao_nome FROM itens i JOIN colecoes c ON i.colecao_id = c.id WHERE i.foto LIKE ?`),
-  itensPublicos: db.prepare(`SELECT i.id, i.titulo, i.ano, i.estado, i.foto, i.atualizado_em, c.slug AS colecao_slug, c.nome AS colecao_nome
+  itensPublicos: db.prepare(`SELECT i.id, i.titulo, i.ano, i.regiao, i.estado, i.observacoes, i.foto, i.atualizado_em, c.slug AS colecao_slug, c.nome AS colecao_nome
                              FROM itens i JOIN colecoes c ON c.id = i.colecao_id WHERE c.visivel = 1 ORDER BY c.ordem, i.ordem, i.id`),
 
   recadosAprovados: db.prepare(`SELECT * FROM recados WHERE aprovado = 1 ORDER BY id DESC LIMIT ? OFFSET ?`),
@@ -258,6 +269,14 @@ const q = {
   inserirRecado: db.prepare(`INSERT INTO recados (nome, site, mensagem, criado_em) VALUES (?, ?, ?, ?)`),
   aprovarRecado: db.prepare(`UPDATE recados SET aprovado = 1 WHERE id = ?`),
   excluirRecado: db.prepare(`DELETE FROM recados WHERE id = ?`),
+
+  comentariosDoPost: db.prepare(`SELECT * FROM comentarios WHERE post_id = ? AND aprovado = 1 ORDER BY id`),
+  contarComentariosPendentes: db.prepare(`SELECT COUNT(*) AS n FROM comentarios WHERE aprovado = 0`),
+  comentariosAdmin: db.prepare(`SELECT c.*, p.titulo AS post_titulo, p.slug AS post_slug, p.secao AS post_secao
+                                FROM comentarios c JOIN posts p ON p.id = c.post_id ORDER BY c.aprovado, c.id DESC LIMIT 500`),
+  inserirComentario: db.prepare(`INSERT INTO comentarios (post_id, nome, mensagem, criado_em) VALUES (?, ?, ?, ?)`),
+  aprovarComentario: db.prepare(`UPDATE comentarios SET aprovado = 1 WHERE id = ?`),
+  excluirComentario: db.prepare(`DELETE FROM comentarios WHERE id = ?`),
 
   enqueteAtiva: db.prepare(`SELECT * FROM enquetes WHERE ativa = 1 ORDER BY id DESC LIMIT 1`),
   enquetePorId: db.prepare(`SELECT * FROM enquetes WHERE id = ?`),
@@ -387,6 +406,13 @@ module.exports = {
   inserirRecado: (r) => Number(q.inserirRecado.run(r.nome, r.site, r.mensagem, new Date().toISOString()).lastInsertRowid),
   aprovarRecado: (id) => q.aprovarRecado.run(id).changes,
   excluirRecado: (id) => q.excluirRecado.run(id).changes,
+
+  comentariosDoPost: (postId) => q.comentariosDoPost.all(postId),
+  contarComentariosPendentes: () => q.contarComentariosPendentes.get().n,
+  comentariosAdmin: () => q.comentariosAdmin.all(),
+  inserirComentario: (c) => Number(q.inserirComentario.run(c.post_id, c.nome, c.mensagem, new Date().toISOString()).lastInsertRowid),
+  aprovarComentario: (id) => q.aprovarComentario.run(id).changes,
+  excluirComentario: (id) => q.excluirComentario.run(id).changes,
 
   enqueteAtiva: () => q.enqueteAtiva.get(),
   enquetePorId: (id) => q.enquetePorId.get(id),

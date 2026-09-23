@@ -5,6 +5,8 @@ const { pagina, ranking, emObras, modalErro, urlPost, SECOES, arquivoLocal } = r
 const db = require('../db');
 const site = require('../site');
 const { CORES, quantos } = require('../chat');
+const { MAX_TERMO } = require('../busca');
+const captcha = require('../captcha');
 
 const fmtDia = new Intl.DateTimeFormat('pt-BR', { timeZone: cfg.FUSO, day: '2-digit', month: '2-digit', year: 'numeric' });
 const diaDe = (iso) => fmtDia.format(new Date(iso));
@@ -140,6 +142,47 @@ function nuvemTags(posts) {
                 </section>`;
 }
 
+const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+const nomeMes = (ano, mes) => `${MESES[Number(mes) - 1]} de ${ano}`;
+
+// arquivo: quantos posts em cada mês, agrupado por ano (mais novo primeiro)
+function painelArquivo(posts) {
+  const porAno = new Map();
+  for (const p of posts) {
+    const [ano, mes] = p.publicado_em.split('-');
+    if (!porAno.has(ano)) porAno.set(ano, new Map());
+    const meses = porAno.get(ano);
+    meses.set(mes, (meses.get(mes) || 0) + 1);
+  }
+  if (!porAno.size) return '';
+  return `
+                <section class="painel" id="arquivo">
+                    <h2>Arquivo</h2>
+                    <div class="dentro arquivo">
+${[...porAno].map(([ano, meses]) => `                        <p><b>${ano}</b> ${[...meses].map(([mes, n]) =>
+    `<a href="/arquivo/${ano}/${mes}">${MESES[Number(mes) - 1]} (${n})</a>`).join(' &middot; ')}</p>`).join('\n')}
+                    </div>
+                </section>`;
+}
+
+function arquivoMes(ano, mes, posts) {
+  return pagina({
+    titulo: `Arquivo: ${nomeMes(ano, mes)} :: HB Blog`,
+    descricao: `Posts do HB Hub publicados em ${nomeMes(ano, mes)}.`,
+    aba: 'blog',
+    aqui: 'blog-todos',
+    noindex: true,
+    seo: { caminho: `/arquivo/${ano}/${mes}` },
+    miolo: `                <div class="migalhas"><a href="/">Início</a> &raquo; <a href="/blog">Blog</a> &raquo; <a href="/blog#arquivo">Arquivo</a> &raquo; ${nomeMes(ano, mes)}</div>
+                <h1 class="bem-vindo">Arquivo: ${nomeMes(ano, mes)}</h1>
+
+                <section class="painel">
+                    <h2>${posts.length} post${posts.length === 1 ? '' : 's'}</h2>
+${ranking(posts)}
+                </section>`,
+  });
+}
+
 const POR_PAGINA = 10;
 
 function resumoAutomatico(conteudo) {
@@ -171,7 +214,7 @@ function listaSecao(secao, todos, numPagina) {
     ? `                <section class="painel">
                     <h2>${secao === 'blog' ? 'Ranking de posts' : nome} <small>do mais novo pro mais velho</small></h2>
 ${ranking(posts.slice(inicioPag, inicioPag + POR_PAGINA))}
-                </section>${paginacao('/' + secao, numPagina, posts.length)}${secao === 'blog' ? nuvemTags(posts) : ''}`
+                </section>${paginacao('/' + secao, numPagina, posts.length)}${secao === 'blog' ? nuvemTags(posts) + painelArquivo(posts) : ''}`
     : emObras('Em construção', secao === 'opinioes'
       ? 'As opiniões já existem, só falta escrever. Volte mais tarde.'
       : 'Nada por aqui ainda. Volte mais tarde!');
@@ -213,7 +256,42 @@ ${ranking(posts)}
   });
 }
 
-function post(p, { anterior, proximo, previa = false } = {}) {
+// comentários do post: a lista (só aprovados) e o formulário (fora da prévia do painel)
+function comentariosHtml(p, { previa, aviso = '', erro = '', valores = {} }) {
+  if (previa) return '';
+  const lista = db.comentariosDoPost(p.id);
+  return `
+
+                <section class="painel" id="comentarios">
+                    <h2>Comentários <small>${lista.length} ${lista.length === 1 ? 'comentário' : 'comentários'}</small></h2>
+                    <div class="dentro">${lista.length ? `
+                        <ol class="recados">
+${lista.map((c) => `                            <li class="recado">
+                                <div class="recado-cab"><b>${esc(c.nome)}</b><span>${diaDe(c.criado_em)}</span></div>
+                                <p>${comQuebras(c.mensagem)}</p>
+                            </li>`).join('\n')}
+                        </ol>` : `
+                        <p>Ninguém comentou ainda. Seja o primeiro!</p>`}
+                    </div>
+                </section>${aviso ? `
+
+                <p class="aviso-ok">${esc(aviso)}</p>` : ''}${erro ? `
+
+                <p class="aviso-erro">${esc(erro)}</p>` : ''}
+
+                <section class="painel">
+                    <h2>Deixe um comentário <small>aparece depois que o webmaster aprovar</small></h2>
+                    <form class="dentro form-recado" method="post" action="${urlPost(p)}/comentar#comentarios">
+                        <label>Nome ou apelido <input name="nome" maxlength="40" required value="${esc(valores.nome || '')}"></label>
+                        <label class="armadilha" aria-hidden="true">Não preencha isto <input name="email" tabindex="-1" autocomplete="off"></label>
+                        <label>Comentário <textarea name="mensagem" maxlength="1000" rows="4" required>${esc(valores.mensagem || '')}</textarea></label>
+                        ${captcha.campo()}
+                        <button class="botao">Comentar &#8250;</button>
+                    </form>
+                </section>`;
+}
+
+function post(p, { anterior, proximo, previa = false, comentar = {} } = {}) {
   const tldr = p.tldr.split('\n').map((l) => l.trim()).filter(Boolean);
   const nomeSecao = SECOES[p.secao];
   const faixa = previa
@@ -274,7 +352,7 @@ ${p.html}
                 <div class="fim-post">
                     ${proximo ? `<a href="${urlPost(proximo)}">&laquo; ${esc(proximo.titulo)}</a>` : `<a href="/${p.secao}">&laquo; voltar pro ${nomeSecao.toLowerCase()}</a>`}
                     ${anterior ? `<a href="${urlPost(anterior)}">${esc(anterior.titulo)} &raquo;</a>` : '<span class="desligado">fim da linha &raquo;</span>'}
-                </div>`,
+                </div>${comentariosHtml(p, { previa, ...comentar })}`,
   });
 }
 
@@ -286,7 +364,7 @@ function grade(colecoes) {
 function gradeItens(slug, itens) {
   const cartoes = itens.map((i) => {
     const meta = [i.ano, i.estado].filter(Boolean).map(esc).join(' &middot; ');
-    return `                        <li class="cat-item"><a href="/colecoes/${slug}/${i.id}">
+    return `                        <li class="cat-item"><a href="/colecoes/${i.colecao_slug || slug}/${i.id}">
                             ${fotoDoItem(i.foto)}
                             <strong>${esc(i.titulo)}</strong>
                             ${meta ? `<small>${meta}</small>` : ''}
@@ -390,6 +468,39 @@ ${i.observacoes ? `
   });
 }
 
+function busca(q, { termos, posts, itens }) {
+  const form = `                <form class="form-busca" method="get" action="/busca" role="search">
+                    <input type="search" name="q" value="${esc(q)}" maxlength="${MAX_TERMO}" placeholder="ex: gran turismo, open source" aria-label="Buscar no site" required>
+                    <button class="botao">Buscar &#8250;</button>
+                </form>`;
+  let corpo = '';
+  if (q && !termos.length) {
+    corpo = '<p>Digita pelo menos uma palavra com 2 letras ou mais.</p>';
+  } else if (q && !posts.length && !itens.length) {
+    corpo = emObras('Nada encontrado', `Não achei nada com &ldquo;${esc(q)}&rdquo;. Tenta outra palavra (ou menos palavras).`);
+  } else if (q) {
+    corpo = `${posts.length ? `
+                <section class="painel">
+                    <h2>Posts <small>${posts.length} ${posts.length === 1 ? 'resultado' : 'resultados'}</small></h2>
+${ranking(posts)}
+                </section>` : ''}${itens.length ? `
+                <section class="painel">
+                    <h2>Itens das coleções <small>${itens.length} ${itens.length === 1 ? 'resultado' : 'resultados'}${itens.length === 60 ? ' (mostrando os 60 primeiros)' : ''}</small></h2>
+${gradeItens('', itens)}
+                </section>` : ''}`;
+  }
+  return pagina({
+    titulo: q ? `Busca: ${q} :: HB Hub` : 'Busca :: HB Hub',
+    descricao: 'Procure posts e itens das coleções do HB Hub.',
+    aqui: 'busca',
+    noindex: true,
+    miolo: `                <h1 class="bem-vindo">Busca</h1>
+
+${form}
+${corpo}`,
+  });
+}
+
 function livroVisitas({ pag = 1, aviso = '', erro = '', valores = {} } = {}) {
   const total = db.contarAprovados();
   const recados = db.recadosAprovados(POR_PAGINA, (pag - 1) * POR_PAGINA);
@@ -420,6 +531,7 @@ ${aviso ? `
                         <label>Seu site (opcional) <input name="site" maxlength="300" placeholder="https://..." value="${esc(valores.site || '')}"></label>
                         <label class="armadilha" aria-hidden="true">Não preencha isto <input name="email" tabindex="-1" autocomplete="off"></label>
                         <label>Recado <textarea name="mensagem" maxlength="1000" rows="5" required>${esc(valores.mensagem || '')}</textarea></label>
+                        ${captcha.campo()}
                         <button class="botao">Assinar &#8250;</button>
                     </form>
                 </section>
@@ -440,11 +552,8 @@ const AVISOS_VOTO = {
   encerrada: 'Essa enquete já foi encerrada.',
 };
 
-function enquete(voto) {
-  const aviso = Object.hasOwn(AVISOS_VOTO, voto) ? AVISOS_VOTO[voto] : '';
-  const e = site.enqueteComOpcoes(db.enqueteAtiva() || db.enquetes()[0]);
-  const corpo = e
-    ? `                <section class="painel">
+function resultadoEnquete(e) {
+  return `                <section class="painel">
                     <h2>${esc(e.pergunta)} <small>${e.total} ${e.total === 1 ? 'voto' : 'votos'}${e.ativa ? '' : ' &middot; encerrada'}</small></h2>
                     <div class="dentro resultado-enquete">
 ${e.opcoes.map((o) => {
@@ -452,7 +561,19 @@ ${e.opcoes.map((o) => {
     return `                        <div class="opcao"><span>${esc(o.texto)}</span><span class="barra"><i style="width:${pct}%"></i></span><b>${pct}% (${o.votos})</b></div>`;
   }).join('\n')}
                     </div>
-                </section>`
+                </section>`;
+}
+
+function enquete(voto) {
+  const aviso = Object.hasOwn(AVISOS_VOTO, voto) ? AVISOS_VOTO[voto] : '';
+  const todas = db.enquetes().map(site.enqueteComOpcoes);
+  const e = todas.find((x) => x.ativa) || todas[0];
+  const anteriores = todas.filter((x) => x !== e);
+  const corpo = e
+    ? resultadoEnquete(e) + (anteriores.length ? `
+
+                <h2 class="subtitulo">Enquetes anteriores</h2>
+${anteriores.map(resultadoEnquete).join('\n')}` : '')
     : emObras('Sem enquete', 'Nenhuma enquete no ar agora. Volte mais tarde!');
   return pagina({
     titulo: 'Enquete :: HB Hub',
@@ -583,4 +704,4 @@ ${emObras(e[1], e[2])}
   });
 }
 
-module.exports = { inicio, listaSecao, porTag, post, colecoes, colecao, itemColecao, livroVisitas, enquete, links, novidades, salaChat, erro, POR_PAGINA };
+module.exports = { inicio, listaSecao, porTag, arquivoMes, busca, post, colecoes, colecao, itemColecao, livroVisitas, enquete, links, novidades, salaChat, erro, POR_PAGINA };

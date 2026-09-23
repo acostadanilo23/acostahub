@@ -32,12 +32,21 @@ function navLateral(aqui, ultimo) {
     ['No blog', [
       ...(ultimo ? [[`post-${ultimo.id}`, urlPost(ultimo), 'Último post']] : []),
       ['blog-todos', '/blog', 'Todos os posts'],
+      ['arquivo', '/blog#arquivo', 'Arquivo por mês'],
       ['rss', '/feed.xml', 'Feed RSS'],
     ]],
     ['Por plataforma', videogames.map((c) => [c.slug, `/colecoes/${c.slug}`, c.nome])],
     ['Outras coleções', outros.map((c) => [c.slug, `/colecoes/${c.slug}`, c.slug === 'jogos-pc' ? 'Jogos de PC' : c.nome])],
   ];
-  return caixas.map(([titulo, itens]) => `
+  const buscaHtml = `
+                <section class="caixa busca-mini">
+                    <h3>Busca</h3>
+                    <form method="get" action="/busca" role="search">
+                        <input type="search" name="q" maxlength="60" placeholder="procurar..." aria-label="Buscar no site" required>
+                        <button class="botao-votar">OK</button>
+                    </form>
+                </section>`;
+  return buscaHtml + caixas.map(([titulo, itens]) => `
                 <section class="caixa">
                     <h3>${titulo}</h3>
                     <ul class="nav-lateral">

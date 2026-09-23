@@ -8,7 +8,9 @@ Blog completo com painel de administração, editor de posts e anexos.
 - **Painel em `/admin`**: login, lista de posts, editor em Markdown com barra de ferramentas, prévia ao vivo,
   anexos (arrastar, colar ou botão), imagens convertidas pra WebP no navegador, rascunho, agendamento,
   backup local do que não foi salvo e atalhos (Ctrl+S, Ctrl+B, Ctrl+I, Ctrl+K).
-- RSS em `/feed.xml`, tags, paginação e seções (Blog, Opiniões, Projetos).
+- RSS em `/feed.xml`, tags, arquivo por mês (`/arquivo/2026/09`), paginação e seções (Blog, Opiniões, Projetos).
+- **Busca** em `/busca?q=`: posts e itens das coleções, sem acento e sem JavaScript.
+- **Comentários nos posts**, com aprovação no painel (aba Recados), igual ao livro de visitas.
 - **Contador de visitas de verdade**, sem cookie e sem guardar IP (veja abaixo), com gráfico no painel.
 - **Bate-papo** em `/chat`, simples: apelido, cor e mensagem, com a lista de quem está na sala
   (clicar num nome coloca `@nome` na mensagem, e quem é chamado vê a linha destacada). Tempo real com Server-Sent Events.
@@ -63,6 +65,10 @@ reconstrói a imagem e só dá o deploy por concluído se o container ficar saud
 
 ### Backup
 
+O próprio servidor faz um backup do banco por dia em `data/backups/blog-AAAA-MM-DD.db` e guarda os 7 últimos
+(o painel mostra o último e avisa se falhar). Ele fica no mesmo volume, então protege contra erro e dado
+corrompido, não contra perder a máquina: pra isso, copie de vez em quando pra fora (comandos abaixo).
+
 Cópia consistente do banco com o site no ar: `docker exec hbhub node tools/backup-db.js /tmp/blog.db`
 (depois `docker cp hbhub:/tmp/blog.db .`).
 
@@ -81,6 +87,8 @@ src/db.js               SQLite (posts, anexos, sessões)
 src/auth.js             login, sessão e trava de força bruta
 src/contador.js         contador de visitas
 src/chat.js             bate-papo (em memória, Server-Sent Events)
+src/busca.js            busca em posts e itens
+src/backup.js           backup diário do banco
 public/chat/chat.js     o único JavaScript do site público
 src/markdown.js         Markdown -> HTML (escapa todo HTML digitado)
 src/views/              páginas públicas e do painel
@@ -123,5 +131,8 @@ como os contadores de antigamente.
 - POST/PUT/DELETE de outra origem são recusados (CSRF)
 - Content-Security-Policy sem scripts de terceiros
 - anexos: só imagem, PDF, ZIP, MP3 e TXT, conferindo o conteúdo real do arquivo (SVG e HTML são recusados)
+- livro de visitas e comentários: campo-armadilha, limite por IP e um desafio anti-robô caseiro (continha ou
+  "que cor é esse quadrado?"). A resposta não vai pra página, só uma assinatura HMAC com validade de 2 horas,
+  e cada desafio vale uma tentativa só
 - bate-papo: tudo que os outros escrevem entra na página como texto (nunca HTML), apelidos só com letras/números,
   anti-flood, limite de pessoas por IP e de entradas por minuto
