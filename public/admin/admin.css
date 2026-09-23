@@ -451,6 +451,8 @@ input[type="datetime-local"] { color-scheme: dark }
 }
 .itens-ordenar { font-size: 11px; color: #888 }
 .itens-ordenar .link-acao { margin: 0 0 0 8px }
+.itens-csv { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; padding: 0 14px 10px }
+.itens-csv small { color: #666; font-size: 10px }
 
 .adm-itens .item-foto { width: 52px }
 .adm-itens .item-foto .mini {

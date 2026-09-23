@@ -928,6 +928,35 @@ function iniciarItens(pagina) {
 
   modalFoto.querySelector('.fechar')?.addEventListener('click', () => fecharModal(modalFoto));
 
+  // ------------------------------------------------------------ importar CSV
+  const inputCsv = $('#csv-arquivo');
+  $('#btn-importar-csv')?.addEventListener('click', () => inputCsv.click());
+  inputCsv?.addEventListener('change', async (e) => {
+    const arquivo = e.target.files[0];
+    e.target.value = '';
+    if (!arquivo) return;
+    let texto;
+    try { texto = await arquivo.text(); } catch { avisar(erroSimples('Não consegui ler o arquivo.')); return; }
+    try {
+      const prev = await api('POST', `/api/colecoes/${colecaoId}/importar-csv`, { csv: texto });
+      const linhasErro = prev.erros.map((x) => x.linha);
+      const parteErro = linhasErro.length
+        ? ` ${linhasErro.length} ${linhasErro.length === 1 ? 'linha com erro' : 'linhas com erro'} (${linhasErro.slice(0, 8).join(', ')}${linhasErro.length > 8 ? '…' : ''}).`
+        : '';
+      const parteDup = prev.duplicados ? ` ${prev.duplicados} já ${prev.duplicados === 1 ? 'existe e será ignorado' : 'existem e serão ignorados'}.` : '';
+      if (prev.adicionar === 0) {
+        avisar(erroSimples(`Nada pra importar desse arquivo.${parteDup}${parteErro}`), 'Importar CSV');
+        return;
+      }
+      const msg = `Vai adicionar ${prev.adicionar} ${prev.adicionar === 1 ? 'item' : 'itens'}.${parteDup}${parteErro}\n\nConfirmar importação?`;
+      if (!confirm(msg)) return;
+      await api('POST', `/api/colecoes/${colecaoId}/importar-csv`, { csv: texto, confirmar: true });
+      location.reload();
+    } catch (err) {
+      avisar(err, 'Não deu pra importar o CSV');
+    }
+  });
+
   $('#btn-enviar-foto').addEventListener('click', () => $('#foto-arquivo').click());
   $('#foto-arquivo').addEventListener('change', async (e) => {
     const bruto = e.target.files[0];

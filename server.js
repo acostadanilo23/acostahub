@@ -550,6 +550,131 @@ rota('POST', '/api/colecoes/(\\d+)/reordenar-itens', async (req, res, [id]) => {
   json(req, res, { ok: true, itens: db.itensDaColecao(colecaoId) });
 }, { restrito: true });
 
+// --- CSV de itens (exportar / importar)
+
+const COLUNAS_CSV = ['título', 'ano', 'região', 'estado', 'observações'];
+const semAcento = (s) => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+const ALIAS_CSV = {
+  titulo: ['titulo', 'title', 'nome', 'name', 'item', 'jogo', 'game'],
+  ano: ['ano', 'year', 'data', 'date', 'lancamento'],
+  regiao: ['regiao', 'region'],
+  estado: ['estado', 'state', 'condition', 'condicao', 'conservacao'],
+  observacoes: ['observacoes', 'obs', 'notes', 'note', 'comentarios', 'comentario', 'descricao', 'description'],
+};
+const chaveItem = (titulo, ano) => `${semAcento(titulo)}||${semAcento(ano)}`;
+
+function csvCampo(v) {
+  const s = String(v ?? '');
+  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+function gerarCsv(itens) {
+  const linhas = [COLUNAS_CSV];
+  for (const i of itens) linhas.push([i.titulo, i.ano, i.regiao, i.estado, i.observacoes]);
+  return `﻿${linhas.map((l) => l.map(csvCampo).join(',')).join('\r\n')}\r\n`;
+}
+
+function detectarDelim(primeiraLinha) {
+  const conta = (c) => (primeiraLinha.split(c).length - 1);
+  const ponto = conta(';');
+  const tab = conta('\t');
+  const virgula = conta(',');
+  if (ponto > virgula && ponto >= tab) return ';';
+  if (tab > virgula && tab > ponto) return '\t';
+  return ',';
+}
+
+function parseCsv(texto, delim) {
+  const linhas = [];
+  let campo = '';
+  let linha = [];
+  let aspas = false;
+  const t = texto.replace(/\r\n?/g, '\n');
+  for (let i = 0; i < t.length; i++) {
+    const c = t[i];
+    if (aspas) {
+      if (c === '"') {
+        if (t[i + 1] === '"') { campo += '"'; i++; } else aspas = false;
+      } else campo += c;
+    } else if (c === '"') aspas = true;
+    else if (c === delim) { linha.push(campo); campo = ''; }
+    else if (c === '\n') { linha.push(campo); linhas.push(linha); linha = []; campo = ''; }
+    else campo += c;
+  }
+  if (campo !== '' || linha.length) { linha.push(campo); linhas.push(linha); }
+  return linhas;
+}
+
+function importarCsv(colecaoId, texto, confirmar) {
+  if (texto.charCodeAt(0) === 0xfeff) texto = texto.slice(1);
+  const primeira = (texto.split('\n')[0] || '').replace(/\r$/, '');
+  const linhas = parseCsv(texto, detectarDelim(primeira));
+  if (!linhas.length) throw new ErroHttp(400, 'O arquivo CSV está vazio.');
+
+  const col = {};
+  linhas[0].forEach((h, i) => {
+    const n = semAcento(h);
+    for (const [campo, aliases] of Object.entries(ALIAS_CSV)) {
+      if (col[campo] === undefined && aliases.includes(n)) col[campo] = i;
+    }
+  });
+  if (col.titulo === undefined) {
+    throw new ErroHttp(400, 'Não achei a coluna de título no CSV. A primeira linha precisa ser um cabeçalho com "título" (ou "nome"/"title").');
+  }
+
+  const existentes = new Set(db.itensDaColecao(colecaoId).map((i) => chaveItem(i.titulo, i.ano)));
+  const vistos = new Set();
+  const paraInserir = [];
+  const erros = [];
+  let duplicados = 0;
+  for (let n = 1; n < linhas.length; n++) {
+    const linha = linhas[n];
+    if (linha.length === 1 && linha[0].trim() === '') continue; // linha em branco
+    const pega = (campo, max) => (col[campo] !== undefined ? String(linha[col[campo]] ?? '').trim().slice(0, max) : '');
+    const titulo = pega('titulo', 200);
+    if (!titulo) { erros.push({ linha: n + 1 }); continue; }
+    const chave = chaveItem(titulo, pega('ano', 20));
+    if (existentes.has(chave) || vistos.has(chave)) { duplicados++; continue; }
+    vistos.add(chave);
+    paraInserir.push({
+      titulo, ano: pega('ano', 20), regiao: pega('regiao', 50),
+      estado: pega('estado', 50), observacoes: pega('observacoes', 500),
+    });
+  }
+
+  if (confirmar && paraInserir.length) {
+    db.db.exec('BEGIN');
+    try {
+      let ordem = db.proximaOrdemItem(colecaoId);
+      for (const it of paraInserir) db.inserirItem({ colecao_id: colecaoId, ...it, foto: '', ordem: ordem++ });
+      db.db.exec('COMMIT');
+    } catch (e) {
+      db.db.exec('ROLLBACK');
+      throw e;
+    }
+  }
+  return { adicionar: paraInserir.length, duplicados, erros, confirmado: !!confirmar };
+}
+
+rota('GET', '/api/colecoes/(\\d+)/exportar\\.csv', (req, res, [id]) => {
+  const c = db.colecaoPorId(Number(id));
+  if (!c) return nao(req, res);
+  enviar(req, res, 200, gerarCsv(db.itensDaColecao(c.id)), 'text/csv; charset=utf-8', {
+    'Cache-Control': 'no-store',
+    'Content-Disposition': `attachment; filename="${c.slug}.csv"`,
+  });
+}, { restrito: true });
+
+rota('POST', '/api/colecoes/(\\d+)/importar-csv', async (req, res, [id]) => {
+  const numId = Number(id);
+  const c = db.colecaoPorId(numId);
+  if (!c) throw new ErroHttp(404, 'Coleção não encontrada.');
+  const d = await lerJson(req);
+  const csv = String(d.csv || '');
+  if (!csv.trim()) throw new ErroHttp(400, 'Nenhum conteúdo CSV recebido.');
+  if (csv.length > 1000000) throw new ErroHttp(413, 'CSV grande demais (máximo ~1 MB).');
+  json(req, res, importarCsv(numId, csv, !!d.confirmar));
+}, { restrito: true });
+
 const ehJson = (caminho) => caminho.startsWith('/api/') || caminho.startsWith('/chat/');
 
 function nao(req, res) {

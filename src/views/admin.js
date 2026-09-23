@@ -397,6 +397,12 @@ function colecaoItens(c, itens, anexos) {
                     <button type="button" class="link-acao" data-ordenar="ano" data-dir="desc">ano &#9660;</button>
                 </span>
             </div>
+            <div class="itens-csv dentro">
+                <a class="link-acao" href="/api/colecoes/${c.id}/exportar.csv">Exportar CSV</a>
+                <button type="button" class="link-acao" id="btn-importar-csv">Importar CSV</button>
+                <input type="file" id="csv-arquivo" accept=".csv,text/csv" hidden>
+                <small>colunas: título, ano, região, estado, observações</small>
+            </div>
             <table class="adm-tabela adm-itens">
                 <thead><tr><th>Foto</th><th>Título</th><th>Ano</th><th>Estado</th><th>Ordem</th><th></th></tr></thead>
                 <tbody id="lista-itens"></tbody>
