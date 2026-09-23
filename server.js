@@ -12,6 +12,7 @@ const { slugify, agoraLocal, RE_DATA_LOCAL, paraDate, tagsDe, minutosLeitura, ip
 const contador = require('./src/contador');
 const chat = require('./src/chat');
 const site = require('./src/site');
+const defesa = require('./src/defesa');
 const { servirPublico, mandarArquivo, dentro } = require('./src/estaticos');
 const publico = require('./src/views/publico');
 const admin = require('./src/views/admin');
@@ -27,6 +28,7 @@ function cabecalhosSeguranca(res) {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('Content-Security-Policy', CSP_BASE);
+  res.setHeader('X-Robots-Tag', 'noai, noimageai');
   if (cfg.COOKIE_SEGURO) res.setHeader('Strict-Transport-Security', 'max-age=31536000');
 }
 
@@ -354,9 +356,9 @@ rota('POST', '/chat/moderar', async (req, res) => {
 }, { restrito: true });
 
 rota('GET', '/feed.xml', (req, res) => enviar(req, res, 200, feed(), 'application/rss+xml; charset=utf-8', { 'Cache-Control': 'public, max-age=600' }));
-rota('GET', '/robots.txt', (req, res) => enviar(req, res, 200,
-  `User-agent: *\nDisallow: /admin\nDisallow: /api\nDisallow: /chat/\n\nSitemap: ${cfg.SITE_URL}/sitemap.xml\n`,
+rota('GET', '/robots.txt', (req, res) => enviar(req, res, 200, defesa.ROBOTS(cfg.SITE_URL),
   'text/plain; charset=utf-8', { 'Cache-Control': 'public, max-age=3600' }));
+rota('GET', '/ai.txt', (req, res) => enviar(req, res, 200, defesa.AI_TXT, 'text/plain; charset=utf-8', { 'Cache-Control': 'public, max-age=3600' }));
 
 // sitemap: só o que vale indexar (páginas "em construção" e tags ficam de fora, e têm noindex)
 function sitemap() {
@@ -838,6 +840,14 @@ const servidor = http.createServer(async (req, res) => {
   const metodo = req.method === 'HEAD' ? 'GET' : req.method;
 
   try {
+    const barrado = defesa.checar(req, caminho, () => auth.logado(req));
+    if (barrado) {
+      res.statusCode = barrado.status;
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-store');
+      if (barrado.espera) res.setHeader('Retry-After', String(barrado.espera));
+      return res.end(req.method === 'HEAD' ? undefined : barrado.texto);
+    }
     if (ANTIGOS[caminho]) return redirecionar(res, ANTIGOS[caminho], 301);
     const antigaColecao = caminho.match(/^\/pages\/colecoes\/([a-z0-9-]+)\.html$/i);
     if (antigaColecao) return redirecionar(res, `/colecoes/${antigaColecao[1].toLowerCase()}`, 301);
@@ -883,6 +893,7 @@ const servidor = http.createServer(async (req, res) => {
 });
 
 servidor.requestTimeout = 5 * 60 * 1000; // uploads grandes em conexão lenta
+servidor.headersTimeout = 15 * 1000; // quem manda os cabeçalhos a conta-gotas (slowloris) cai antes
 servidor.listen(cfg.PORTA, cfg.HOST, () => {
   console.log(`HB Hub no ar em http://${cfg.HOST === '0.0.0.0' ? 'localhost' : cfg.HOST}:${cfg.PORTA}`);
   if (!cfg.ADMIN_SENHA_HASH) console.warn('AVISO: ADMIN_SENHA_HASH vazio no .env, o login fica desativado. Rode: npm run senha');

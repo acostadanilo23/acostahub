@@ -1069,6 +1069,8 @@ dialog.modal-erro::backdrop { background: rgba(0, 0, 40, .55) }
 #rodape nav a:hover { color: #fc0; background: none; text-decoration: underline }
 #rodape p { margin: 0; padding: 6px 10px; text-align: center; color: #888; background: #000 }
 #rodape p + p { padding-top: 0 }
+/* link-armadilha: gente não vê; robô que ignora o robots.txt e segue tudo cai nele */
+#rodape .armadilha { display: none }
 
 /* ---------- molduras com gifs de decoração ---------- */
 .moldura {

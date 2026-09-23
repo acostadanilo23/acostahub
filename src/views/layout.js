@@ -195,7 +195,8 @@ function pagina({ titulo, descricao = '', aba = '', aqui = '', miolo, direita = 
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>${esc(titulo)}</title>
     <meta name="description" content="${esc(descricao)}">
-    <meta name="theme-color" content="#c00">${noindex ? '\n    <meta name="robots" content="noindex, follow">' : ''}${cabecaSeo({ titulo, descricao, seo, noindex })}
+    <meta name="theme-color" content="#c00">
+    <meta name="robots" content="noai, noimageai">${noindex ? '\n    <meta name="robots" content="noindex, follow">' : ''}${cabecaSeo({ titulo, descricao, seo, noindex })}
     <link rel="icon" href="/favicon.ico" sizes="48x48">
     <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
     <link rel="alternate" type="application/rss+xml" title="HB Hub" href="/feed.xml">
@@ -254,6 +255,7 @@ ${muralHtml()}
             </nav>
             <p>&copy; 2026 HB Hub &middot; HTML, CSS e teimosia</p>
             <p>0 cookies de rastreio &middot; 0 rastreadores &middot; contador caseiro que não guarda seu IP</p>
+            <a class="armadilha" href="/armadilha/" rel="nofollow" tabindex="-1" aria-hidden="true">não siga este link</a>
         </footer>
 
     </div>${modal}
