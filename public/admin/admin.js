@@ -521,3 +521,123 @@ function iniciarEditor(form) {
     enviarArquivos(arquivos);
   });
 }
+
+// ---------------------------------------------------------------- coleções (painel)
+
+// excluir coleção com confirmação informando quantos itens vão junto
+document.addEventListener('click', async (ev) => {
+  const b = ev.target.closest('[data-excluir-colecao]');
+  if (!b) return;
+  const nome = b.dataset.nome;
+  const itens = Number(b.dataset.itens || 0);
+  const textoItens = itens === 1 ? 'e o 1 item dela' : `e os ${itens} itens dela`;
+  const msg = itens > 0 ? `Excluir ${nome} ${textoItens}?` : `Excluir ${nome}?`;
+  if (!confirm(msg)) return;
+  try {
+    await api('DELETE', `/api/colecoes/${b.dataset.excluirColecao}`);
+    location.reload();
+  } catch (e) {
+    avisar(e, 'Não deu pra excluir');
+  }
+});
+
+// mover ordem (subir / descer)
+document.addEventListener('click', async (ev) => {
+  const b = ev.target.closest('[data-mover-colecao]');
+  if (!b || b.disabled) return;
+  const id = b.dataset.moverColecao;
+  const direcao = b.dataset.dir;
+  try {
+    await api('POST', `/api/colecoes/${id}/ordem`, { direcao });
+    location.reload();
+  } catch (e) {
+    avisar(e, 'Não deu pra mudar a ordem');
+  }
+});
+
+// alternar visibilidade (esconder / mostrar)
+document.addEventListener('click', async (ev) => {
+  const b = ev.target.closest('[data-visibilidade-colecao]');
+  if (!b) return;
+  const id = b.dataset.visibilidadeColecao;
+  const visivel = Number(b.dataset.visivel);
+  try {
+    await api('POST', `/api/colecoes/${id}/visibilidade`, { visivel });
+    location.reload();
+  } catch (e) {
+    avisar(e, 'Não deu pra alterar a visibilidade');
+  }
+});
+
+// criar nova coleção
+const formNovaColecao = $('#form-nova-colecao');
+if (formNovaColecao) {
+  formNovaColecao.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const nome = $('#novo-nome').value.trim();
+    if (!nome) {
+      avisar(erroSimples('A coleção precisa de um nome.'));
+      return;
+    }
+    const subtitulo = $('#novo-subtitulo').value.trim();
+    const grupo = $('#novo-grupo').value;
+    const estilo = $('#novo-estilo').value;
+    try {
+      await api('POST', '/api/colecoes', { nome, subtitulo, grupo, estilo });
+      location.reload();
+    } catch (err) {
+      avisar(err, 'Não deu pra criar a coleção');
+    }
+  });
+}
+
+// modal de edição de coleção
+const modalEditarColecao = $('#modal-editar-colecao');
+const formEditarColecao = $('#form-editar-colecao');
+if (modalEditarColecao && formEditarColecao) {
+  document.addEventListener('click', (ev) => {
+    const b = ev.target.closest('[data-editar-colecao]');
+    if (!b) return;
+    const c = JSON.parse(b.dataset.editarColecao);
+    $('#ed-id').value = c.id;
+    $('#ed-nome').value = c.nome;
+    $('#ed-subtitulo').value = c.subtitulo || '';
+    $('#ed-grupo').value = c.grupo;
+    $('#ed-estilo').value = c.estilo;
+    $('#ed-slug-preview').textContent = `/colecoes/${c.slug}`;
+    try {
+      modalEditarColecao.showModal();
+    } catch {
+      modalEditarColecao.setAttribute('open', '');
+    }
+  });
+
+  const fecharModalEdicao = () => {
+    try {
+      modalEditarColecao.close();
+    } catch {
+      modalEditarColecao.removeAttribute('open');
+    }
+  };
+  modalEditarColecao.querySelector('.fechar')?.addEventListener('click', fecharModalEdicao);
+  modalEditarColecao.querySelector('.fechar-modal')?.addEventListener('click', fecharModalEdicao);
+
+  formEditarColecao.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = $('#ed-id').value;
+    const nome = $('#ed-nome').value.trim();
+    if (!nome) {
+      avisar(erroSimples('A coleção precisa de um nome.'));
+      return;
+    }
+    const subtitulo = $('#ed-subtitulo').value.trim();
+    const grupo = $('#ed-grupo').value;
+    const estilo = $('#ed-estilo').value;
+    try {
+      await api('PUT', `/api/colecoes/${id}`, { nome, subtitulo, grupo, estilo });
+      location.reload();
+    } catch (err) {
+      avisar(err, 'Não deu pra salvar a coleção');
+    }
+  });
+}

@@ -362,6 +362,7 @@ rota('POST', '/admin/sair', (req, res) => {
 });
 
 rota('GET', '/admin', (req, res) => html(req, res, admin.painel(db.todosPosts(), db.anexos(), contador.relatorio(), chat.quantos())), { restrito: true });
+rota('GET', '/admin/colecoes', (req, res) => html(req, res, admin.colecoes(db.todasColecoesAdmin())), { restrito: true });
 rota('GET', '/admin/novo', (req, res) => html(req, res, admin.editor(null)), { restrito: true });
 rota('GET', '/admin/editar/(\\d+)', (req, res, [id]) => {
   const p = db.postPorId(Number(id));
@@ -396,6 +397,66 @@ rota('DELETE', '/api/anexos/(\\d+)', (req, res, [id]) => {
   if (emUso.length) throw new ErroHttp(409, `Esse arquivo ainda é usado em: ${emUso.map((p) => p.titulo).join(', ')}.`);
   fs.rmSync(path.join(db.PASTA_UPLOADS, a.arquivo), { force: true });
   db.excluirAnexo(a.id);
+  json(req, res, { ok: true });
+}, { restrito: true });
+
+// --- API de coleções
+
+rota('POST', '/api/colecoes', async (req, res) => {
+  const d = await lerJson(req);
+  const nome = String(d.nome || '').trim().slice(0, 100);
+  if (!nome) throw new ErroHttp(400, 'A coleção precisa de um nome.');
+  const slug = slugify(d.slug || nome);
+  if (!slug) throw new ErroHttp(400, 'Não consegui gerar um endereço a partir desse nome.');
+  const existe = db.colecaoPorSlug(slug);
+  if (existe) throw new ErroHttp(409, `Já existe uma coleção com o endereço "${slug}". Escolha outro nome.`);
+  const grupo = d.grupo === 'outros' ? 'outros' : 'videogames';
+  const estilo = String(d.estilo || '').trim().slice(0, 50) || 'p-ps1';
+  const subtitulo = String(d.subtitulo || '').trim().slice(0, 150);
+  const ordem = db.proximaOrdemColecao();
+  const id = db.inserirColecao({ slug, nome, subtitulo, grupo, estilo, ordem });
+  json(req, res, { ok: true, id, slug }, 201);
+}, { restrito: true });
+
+rota('PUT', '/api/colecoes/(\\d+)', async (req, res, [id]) => {
+  const numId = Number(id);
+  const c = db.colecaoPorId(numId);
+  if (!c) throw new ErroHttp(404, 'Coleção não encontrada.');
+  const d = await lerJson(req);
+  const nome = String(d.nome || '').trim().slice(0, 100);
+  if (!nome) throw new ErroHttp(400, 'A coleção precisa de um nome.');
+  const subtitulo = String(d.subtitulo || '').trim().slice(0, 150);
+  const grupo = d.grupo === 'outros' ? 'outros' : 'videogames';
+  const estilo = String(d.estilo || '').trim().slice(0, 50) || c.estilo;
+  db.atualizarColecao(numId, { nome, subtitulo, grupo, estilo });
+  json(req, res, { ok: true });
+}, { restrito: true });
+
+rota('POST', '/api/colecoes/(\\d+)/ordem', async (req, res, [id]) => {
+  const numId = Number(id);
+  const d = await lerJson(req);
+  const direcao = d.direcao === 'subir' ? 'subir' : (d.direcao === 'descer' ? 'descer' : null);
+  if (!direcao) throw new ErroHttp(400, 'Direção inválida.');
+  const ok = db.reordenarColecao(numId, direcao);
+  if (!ok) throw new ErroHttp(400, 'Não é possível mover nessa direção.');
+  json(req, res, { ok: true });
+}, { restrito: true });
+
+rota('POST', '/api/colecoes/(\\d+)/visibilidade', async (req, res, [id]) => {
+  const numId = Number(id);
+  const c = db.colecaoPorId(numId);
+  if (!c) throw new ErroHttp(404, 'Coleção não encontrada.');
+  const d = await lerJson(req);
+  const visivel = d.visivel ? 1 : 0;
+  db.atualizarVisibilidadeColecao(numId, visivel);
+  json(req, res, { ok: true, visivel });
+}, { restrito: true });
+
+rota('DELETE', '/api/colecoes/(\\d+)', (req, res, [id]) => {
+  const numId = Number(id);
+  const c = db.colecaoPorId(numId);
+  if (!c) throw new ErroHttp(404, 'Coleção não encontrada.');
+  db.excluirColecao(numId);
   json(req, res, { ok: true });
 }, { restrito: true });
 

@@ -33,6 +33,7 @@ function barra(atual = '') {
         <a class="adm-logo" href="/admin"><b>H</b><i>B</i> <span>Painel do Webmaster</span></a>
         <nav>
             <a href="/admin"${atual === 'posts' ? ' class="aqui"' : ''}>Posts</a>
+            <a href="/admin/colecoes"${atual === 'colecoes' ? ' class="aqui"' : ''}>Coleções</a>
             <a href="/admin/novo"${atual === 'novo' ? ' class="aqui"' : ''}>+ Escrever</a>
             <a href="/" target="_blank">Ver site</a>
             <form method="post" action="/admin/sair"><button>Sair</button></form>
@@ -227,4 +228,127 @@ function editor(p) {
     </form>`, { js: true, classe: 'adm-editor' });
 }
 
-module.exports = { login, painel, editor };
+const ESTILOS_CARTUCHO = [
+  { id: 'p-ps1', nome: 'Cinza (PlayStation 1)' },
+  { id: 'p-ps2', nome: 'Azul escuro (PlayStation 2)' },
+  { id: 'p-ps3', nome: 'Preto fumê (PlayStation 3)' },
+  { id: 'p-ps4', nome: 'Azul royal (PlayStation 4)' },
+  { id: 'p-xbox', nome: 'Verde (Xbox)' },
+  { id: 'p-n64', nome: 'Colorido 4 cores (Nintendo 64)' },
+  { id: 'p-wii', nome: 'Branco / Azul (Wii)' },
+  { id: 'p-livros', nome: 'Madeira / Estante (Livros)' },
+  { id: 'p-filmes', nome: 'Película cinematográfica (Filmes)' },
+  { id: 'p-pc', nome: 'Bege retrô (PC)' },
+];
+
+function opcoesEstilo(selecionado = 'p-ps1') {
+  return ESTILOS_CARTUCHO.map((e) => `<option value="${e.id}"${e.id === selecionado ? ' selected' : ''}>${esc(e.nome)}</option>`).join('');
+}
+
+function colecoes(lista) {
+  const visiveis = lista.filter((c) => c.visivel).length;
+  const totalItens = lista.reduce((s, c) => s + (c.total_itens || 0), 0);
+
+  const linhas = lista.map((c, i) => `
+                <tr data-col-id="${c.id}">
+                    <td class="col-estilo"><span class="amostra-cartucho ${esc(c.estilo)}" title="${esc(c.estilo)}"></span></td>
+                    <td>
+                        <span class="tit">${esc(c.nome)}</span>
+                        ${c.subtitulo ? `<small>${esc(c.subtitulo)}</small>` : ''}
+                        <small class="slug-info"><a href="/colecoes/${esc(c.slug)}" target="_blank">/colecoes/${esc(c.slug)}</a></small>
+                    </td>
+                    <td>${c.grupo === 'videogames' ? 'Videogames' : 'Outros'}</td>
+                    <td>${c.total_itens || 0} ${c.total_itens === 1 ? 'item' : 'itens'}</td>
+                    <td><span class="sit ${c.visivel ? 'publicado' : 'rascunho'}">${c.visivel ? 'visível' : 'oculto'}</span></td>
+                    <td class="col-ordem">
+                        <button type="button" class="btn-ordem" data-mover-colecao="${c.id}" data-dir="subir"${i === 0 ? ' disabled' : ''} title="Subir">&#9650;</button>
+                        <button type="button" class="btn-ordem" data-mover-colecao="${c.id}" data-dir="descer"${i === lista.length - 1 ? ' disabled' : ''} title="Descer">&#9660;</button>
+                    </td>
+                    <td class="acoes">
+                        <button type="button" class="link-acao" data-visibilidade-colecao="${c.id}" data-visivel="${c.visivel ? '0' : '1'}">${c.visivel ? 'esconder' : 'mostrar'}</button>
+                        <button type="button" class="link-acao" data-editar-colecao='${esc(JSON.stringify(c))}'>editar</button>
+                        <button type="button" class="link-perigo" data-excluir-colecao="${c.id}" data-nome="${esc(c.nome)}" data-itens="${c.total_itens || 0}">excluir</button>
+                    </td>
+                </tr>`).join('');
+
+  return casca('Coleções', `${barra('colecoes')}
+    <main class="adm-miolo">
+        <div class="adm-numeros">
+            <div><b>${lista.length}</b>coleções</div>
+            <div><b>${visiveis}</b>visíveis</div>
+            <div><b>${lista.length - visiveis}</b>ocultas</div>
+            <div><b>${totalItens}</b>itens catalogados</div>
+        </div>
+
+        <section class="painel">
+            <h2>Todas as coleções <small>organize e gerencie sua estante</small></h2>
+            ${lista.length ? `<table class="adm-tabela adm-colecoes">
+                <tr><th>Cor</th><th>Coleção</th><th>Grupo</th><th>Itens</th><th>Situação</th><th>Ordem</th><th></th></tr>
+                ${linhas}
+            </table>` : '<p class="dentro">Nenhuma coleção cadastrada.</p>'}
+        </section>
+
+        <section class="painel" style="margin-top: 16px;">
+            <h2>+ Nova coleção</h2>
+            <form id="form-nova-colecao" class="form-colecao dentro" autocomplete="off">
+                <div class="campo">
+                    <label for="novo-nome">Nome da coleção</label>
+                    <input id="novo-nome" name="nome" placeholder="Ex: Game Boy Advance" maxlength="100" required>
+                    <small>O endereço (slug) será gerado automaticamente a partir do nome.</small>
+                </div>
+                <div class="campo">
+                    <label for="novo-subtitulo">Subtítulo (opcional)</label>
+                    <input id="novo-subtitulo" name="subtitulo" placeholder="Ex: Portáteis da Nintendo" maxlength="150">
+                </div>
+                <div class="campo-duplo">
+                    <div class="campo">
+                        <label for="novo-grupo">Grupo</label>
+                        <select id="novo-grupo" name="grupo">
+                            <option value="videogames">Videogames</option>
+                            <option value="outros">Outros</option>
+                        </select>
+                    </div>
+                    <div class="campo">
+                        <label for="novo-estilo">Cor do cartucho</label>
+                        <select id="novo-estilo" name="estilo">
+                            ${opcoesEstilo()}
+                        </select>
+                    </div>
+                </div>
+                <div class="form-acoes">
+                    <button type="submit" class="btn">Criar coleção &#8250;</button>
+                </div>
+            </form>
+        </section>
+    </main>
+
+    <dialog id="modal-editar-colecao" class="janela modal-colecao" aria-labelledby="modal-ed-titulo">
+        <div class="janela-titulo"><span id="modal-ed-titulo">Editar Coleção</span><button type="button" class="fechar" aria-label="Fechar">&times;</button></div>
+        <form id="form-editar-colecao" class="janela-corpo" autocomplete="off">
+            <input type="hidden" id="ed-id" name="id">
+            <label>Nome <input id="ed-nome" name="nome" maxlength="100" required></label>
+            <label>Subtítulo <input id="ed-subtitulo" name="subtitulo" maxlength="150"></label>
+            <div class="campo-duplo">
+                <label>Grupo
+                    <select id="ed-grupo" name="grupo">
+                        <option value="videogames">Videogames</option>
+                        <option value="outros">Outros</option>
+                    </select>
+                </label>
+                <label>Cor do cartucho
+                    <select id="ed-estilo" name="estilo">
+                        ${opcoesEstilo()}
+                    </select>
+                </label>
+            </div>
+            <p class="aviso-slug"><small>O endereço original (<code id="ed-slug-preview"></code>) é mantido para não quebrar links.</small></p>
+            <div class="modal-botoes-form">
+                <button type="button" class="btn cinza fechar-modal">Cancelar</button>
+                <button type="submit" class="btn">Salvar alterações</button>
+            </div>
+        </form>
+    </dialog>`, { js: true });
+}
+
+module.exports = { login, painel, editor, colecoes, ESTILOS_CARTUCHO };
+

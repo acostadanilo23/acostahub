@@ -137,11 +137,32 @@ const q = {
 
   colecoesPorGrupo: db.prepare(`SELECT * FROM colecoes WHERE visivel = 1 AND grupo = ? ORDER BY ordem`),
   todasColecoes: db.prepare(`SELECT * FROM colecoes WHERE visivel = 1 ORDER BY ordem`),
+  todasColecoesAdmin: db.prepare(`SELECT c.*, (SELECT COUNT(*) FROM itens WHERE colecao_id = c.id) AS total_itens FROM colecoes c ORDER BY c.ordem`),
   colecaoPorSlug: db.prepare(`SELECT * FROM colecoes WHERE slug = ?`),
+  colecaoPorId: db.prepare(`SELECT * FROM colecoes WHERE id = ?`),
   contarColecoes: db.prepare(`SELECT COUNT(*) AS n FROM colecoes`),
+  proximaOrdemColecao: db.prepare(`SELECT COALESCE(MAX(ordem), 0) + 1 AS proxima FROM colecoes`),
   inserirColecao: db.prepare(`INSERT INTO colecoes (slug, nome, subtitulo, grupo, estilo, ordem, visivel) VALUES (?, ?, ?, ?, ?, ?, 1)`),
+  atualizarColecao: db.prepare(`UPDATE colecoes SET nome = ?, subtitulo = ?, grupo = ?, estilo = ? WHERE id = ?`),
+  atualizarVisibilidadeColecao: db.prepare(`UPDATE colecoes SET visivel = ? WHERE id = ?`),
+  atualizarOrdemColecao: db.prepare(`UPDATE colecoes SET ordem = ? WHERE id = ?`),
+  excluirColecao: db.prepare(`DELETE FROM colecoes WHERE id = ?`),
   itensDaColecao: db.prepare(`SELECT * FROM itens WHERE colecao_id = ? ORDER BY ordem, id`),
 };
+
+function reordenarColecao(id, direcao) {
+  const todas = q.todasColecoesAdmin.all();
+  const idx = todas.findIndex((c) => c.id === id);
+  if (idx === -1) return false;
+  const outroIdx = direcao === 'subir' ? idx - 1 : idx + 1;
+  if (outroIdx < 0 || outroIdx >= todas.length) return false;
+  const [removido] = todas.splice(idx, 1);
+  todas.splice(outroIdx, 0, removido);
+  for (let i = 0; i < todas.length; i++) {
+    q.atualizarOrdemColecao.run(i + 1, todas[i].id);
+  }
+  return true;
+}
 
 module.exports = {
   db,
@@ -175,8 +196,15 @@ module.exports = {
 
   colecoesPorGrupo: (grupo) => q.colecoesPorGrupo.all(grupo),
   todasColecoes: () => q.todasColecoes.all(),
+  todasColecoesAdmin: () => q.todasColecoesAdmin.all(),
   colecaoPorSlug: (slug) => q.colecaoPorSlug.get(slug),
+  colecaoPorId: (id) => q.colecaoPorId.get(id),
   contarColecoes: () => q.contarColecoes.get().n,
+  proximaOrdemColecao: () => q.proximaOrdemColecao.get().proxima,
   inserirColecao: (c) => Number(q.inserirColecao.run(c.slug, c.nome, c.subtitulo, c.grupo, c.estilo, c.ordem).lastInsertRowid),
+  atualizarColecao: (id, c) => q.atualizarColecao.run(c.nome, c.subtitulo, c.grupo, c.estilo, id),
+  atualizarVisibilidadeColecao: (id, visivel) => q.atualizarVisibilidadeColecao.run(visivel, id),
+  reordenarColecao,
+  excluirColecao: (id) => q.excluirColecao.run(id),
   itensDaColecao: (colecaoId) => q.itensDaColecao.all(colecaoId),
 };
