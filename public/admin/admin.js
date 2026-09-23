@@ -66,6 +66,52 @@ function erroSimples(msg) {
   return e;
 }
 
+// ---------------------------------------------------------------- upload de imagens (editor e itens)
+// converte pra WebP e redimensiona no navegador quando "otimizar" está ligado
+async function prepararImagem(arquivo, otimizar) {
+  if (!/^image\/(png|jpeg|webp|gif)$/.test(arquivo.type)) return { arquivo, dims: '' };
+  let bmp;
+  try { bmp = await createImageBitmap(arquivo); } catch { return { arquivo, dims: '' }; }
+  const original = { arquivo, dims: `${bmp.width}x${bmp.height}` };
+  if (!otimizar || arquivo.type === 'image/gif') return original;
+
+  const escala = Math.min(1, 1280 / bmp.width);
+  const w = Math.round(bmp.width * escala);
+  const h = Math.round(bmp.height * escala);
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  canvas.getContext('2d').drawImage(bmp, 0, 0, w, h);
+  const blob = await new Promise((ok) => canvas.toBlob(ok, 'image/webp', 0.82));
+  if (!blob || blob.type !== 'image/webp' || (escala === 1 && blob.size >= arquivo.size)) return original;
+  const nome = arquivo.name.replace(/\.[^.]+$/, '') + '.webp';
+  return { arquivo: new File([blob], nome, { type: 'image/webp' }), dims: `${w}x${h}` };
+}
+
+function subir(arquivo, dims, progresso) {
+  return new Promise((ok, falha) => {
+    const x = new XMLHttpRequest();
+    x.open('POST', '/api/anexos');
+    x.setRequestHeader('Content-Type', 'application/octet-stream');
+    x.setRequestHeader('X-Nome', encodeURIComponent(arquivo.name));
+    if (dims) x.setRequestHeader('X-Dimensoes', dims);
+    x.upload.onprogress = (e) => e.lengthComputable && progresso && progresso(e.loaded / e.total);
+    x.onload = () => {
+      let r = {};
+      try { r = JSON.parse(x.responseText); } catch { /* sem json */ }
+      if (x.status < 300 && r.url) return ok(r);
+      const e = new Error(x.status === 401 ? SESSAO_EXPIROU
+        : `"${arquivo.name}": ${r.erro || (x.status === 413 ? 'arquivo grande demais pro servidor.' : `o servidor respondeu com erro ${x.status}.`)}`);
+      e.status = x.status;
+      e.detalhe = [`POST /api/anexos (${arquivo.name}, ${Math.ceil(arquivo.size / 1024)} KB) → HTTP ${x.status}`,
+        r.codigo && `código: ${r.codigo}`, r.detalhe, !r.erro && x.responseText.slice(0, 300)].filter(Boolean).join('\n');
+      falha(e);
+    };
+    x.onerror = () => falha(erroDeRede('POST', `/api/anexos (${arquivo.name})`, 'a conexão caiu no meio do envio'));
+    x.send(arquivo);
+  });
+}
+
 // ---------------------------------------------------------------- excluir post (painel e editor)
 document.addEventListener('click', async (ev) => {
   const b = ev.target.closest('[data-excluir]');
@@ -399,50 +445,6 @@ function iniciarEditor(form) {
   }
   carregarBiblioteca();
 
-  async function prepararImagem(arquivo) {
-    if (!/^image\/(png|jpeg|webp|gif)$/.test(arquivo.type)) return { arquivo, dims: '' };
-    let bmp;
-    try { bmp = await createImageBitmap(arquivo); } catch { return { arquivo, dims: '' }; }
-    const original = { arquivo, dims: `${bmp.width}x${bmp.height}` };
-    if (!$('#otimizar').checked || arquivo.type === 'image/gif') return original;
-
-    const escala = Math.min(1, 1280 / bmp.width);
-    const w = Math.round(bmp.width * escala);
-    const h = Math.round(bmp.height * escala);
-    const canvas = document.createElement('canvas');
-    canvas.width = w;
-    canvas.height = h;
-    canvas.getContext('2d').drawImage(bmp, 0, 0, w, h);
-    const blob = await new Promise((ok) => canvas.toBlob(ok, 'image/webp', 0.82));
-    if (!blob || blob.type !== 'image/webp' || (escala === 1 && blob.size >= arquivo.size)) return original;
-    const nome = arquivo.name.replace(/\.[^.]+$/, '') + '.webp';
-    return { arquivo: new File([blob], nome, { type: 'image/webp' }), dims: `${w}x${h}` };
-  }
-
-  function subir(arquivo, dims, progresso) {
-    return new Promise((ok, falha) => {
-      const x = new XMLHttpRequest();
-      x.open('POST', '/api/anexos');
-      x.setRequestHeader('Content-Type', 'application/octet-stream');
-      x.setRequestHeader('X-Nome', encodeURIComponent(arquivo.name));
-      if (dims) x.setRequestHeader('X-Dimensoes', dims);
-      x.upload.onprogress = (e) => e.lengthComputable && progresso(e.loaded / e.total);
-      x.onload = () => {
-        let r = {};
-        try { r = JSON.parse(x.responseText); } catch { /* sem json */ }
-        if (x.status < 300 && r.url) return ok(r);
-        const e = new Error(x.status === 401 ? SESSAO_EXPIROU
-          : `"${arquivo.name}": ${r.erro || (x.status === 413 ? 'arquivo grande demais pro servidor.' : `o servidor respondeu com erro ${x.status}.`)}`);
-        e.status = x.status;
-        e.detalhe = [`POST /api/anexos (${arquivo.name}, ${Math.ceil(arquivo.size / 1024)} KB) → HTTP ${x.status}`,
-          r.codigo && `código: ${r.codigo}`, r.detalhe, !r.erro && x.responseText.slice(0, 300)].filter(Boolean).join('\n');
-        falha(e);
-      };
-      x.onerror = () => falha(erroDeRede('POST', `/api/anexos (${arquivo.name})`, 'a conexão caiu no meio do envio'));
-      x.send(arquivo);
-    });
-  }
-
   let contadorEnvio = 0;
   async function enviarArquivos(arquivos) {
     for (const bruto of arquivos) {
@@ -477,7 +479,7 @@ function iniciarEditor(form) {
         if (!ACEITOS.includes(ext)) {
           throw erroSimples(`"${bruto.name}": esse tipo de arquivo não é aceito. Pode mandar imagem (${ACEITOS.slice(0, 5).join(', ')}), PDF, ZIP, MP3 ou TXT.`);
         }
-        const { arquivo, dims } = await prepararImagem(bruto);
+        const { arquivo, dims } = await prepararImagem(bruto, $('#otimizar').checked);
         if (arquivo.size > maxBytes) throw erroSimples(`"${bruto.name}" tem ${(arquivo.size / 1048576).toFixed(1)} MB e o limite é ${form.dataset.maxMb} MB.`);
         const a = await subir(arquivo, dims, (p) => { $('.progresso i', li).style.width = `${Math.round(p * 100)}%`; });
         trocarMarca(markdownDe(a));
@@ -638,6 +640,310 @@ if (modalEditarColecao && formEditarColecao) {
       location.reload();
     } catch (err) {
       avisar(err, 'Não deu pra salvar a coleção');
+    }
+  });
+}
+
+// ---------------------------------------------------------------- itens de uma coleção
+const paginaItens = $('#pagina-itens');
+if (paginaItens) iniciarItens(paginaItens);
+
+function iniciarItens(pagina) {
+  const colecaoId = pagina.dataset.colecaoId;
+  const maxBytes = Number(pagina.dataset.maxMb) * 1048576;
+  let itens = JSON.parse(pagina.dataset.itens);
+
+  const corpo = $('#lista-itens');
+  const busca = $('#busca-itens');
+  const avisoVazio = $('.itens-vazio', pagina);
+  const avisoNada = $('.itens-nada-encontrado', pagina);
+  const contador = $('.adm-numeros div:first-child');
+
+  const IMG = /\.(webp|png|jpe?g|gif)$/i;
+
+  // ------------------------------------------------------------ foto (input escondido + prévia)
+  function setFoto(prefixo, url) {
+    const input = $(`#${prefixo}-foto`);
+    const prev = $(`#${prefixo}-foto-preview`);
+    const limpar = $(`[data-limpar-foto="${prefixo}"]`);
+    input.value = url || '';
+    if (url) {
+      prev.textContent = '';
+      prev.style.backgroundImage = `url("${url}")`;
+      prev.classList.add('tem-foto');
+      limpar.hidden = false;
+    } else {
+      prev.textContent = 'sem foto';
+      prev.style.backgroundImage = '';
+      prev.classList.remove('tem-foto');
+      limpar.hidden = true;
+    }
+  }
+
+  // ------------------------------------------------------------ tabela de itens
+  function celulaFoto(item) {
+    const td = document.createElement('td');
+    td.className = 'item-foto';
+    if (item.foto && IMG.test(item.foto)) {
+      const mini = document.createElement('span');
+      mini.className = 'mini';
+      mini.style.backgroundImage = `url("${item.foto}")`;
+      td.append(mini);
+    } else {
+      td.textContent = '—';
+    }
+    return td;
+  }
+
+  function linha(item, i, total, filtrando) {
+    const tr = document.createElement('tr');
+    tr.dataset.itemId = item.id;
+
+    tr.append(celulaFoto(item));
+
+    const tdTitulo = document.createElement('td');
+    const tit = document.createElement('span');
+    tit.className = 'tit';
+    tit.textContent = item.titulo;
+    tdTitulo.append(tit);
+    if (item.regiao || item.observacoes) {
+      const s = document.createElement('small');
+      s.textContent = [item.regiao, item.observacoes].filter(Boolean).join(' · ');
+      tdTitulo.append(s);
+    }
+    tr.append(tdTitulo);
+
+    const tdAno = document.createElement('td');
+    tdAno.textContent = item.ano || '—';
+    tr.append(tdAno);
+
+    const tdEstado = document.createElement('td');
+    tdEstado.textContent = item.estado || '—';
+    tr.append(tdEstado);
+
+    const tdOrdem = document.createElement('td');
+    tdOrdem.className = 'col-ordem';
+    // as setas só valem na ordem real (sem filtro de busca)
+    const subir = document.createElement('button');
+    subir.type = 'button';
+    subir.className = 'btn-ordem';
+    subir.innerHTML = '&#9650;';
+    subir.title = 'Subir';
+    subir.disabled = filtrando || i === 0;
+    subir.onclick = () => moverItem(item.id, 'subir');
+    const descer = document.createElement('button');
+    descer.type = 'button';
+    descer.className = 'btn-ordem';
+    descer.innerHTML = '&#9660;';
+    descer.title = 'Descer';
+    descer.disabled = filtrando || i === total - 1;
+    descer.onclick = () => moverItem(item.id, 'descer');
+    tdOrdem.append(subir, descer);
+    tr.append(tdOrdem);
+
+    const tdAcoes = document.createElement('td');
+    tdAcoes.className = 'acoes';
+    const editar = document.createElement('button');
+    editar.type = 'button';
+    editar.className = 'link-acao';
+    editar.textContent = 'editar';
+    editar.onclick = () => abrirEdicao(item);
+    const remover = document.createElement('button');
+    remover.type = 'button';
+    remover.className = 'link-perigo';
+    remover.textContent = 'remover';
+    remover.onclick = () => removerItem(item);
+    tdAcoes.append(editar, remover);
+    tr.append(tdAcoes);
+
+    return tr;
+  }
+
+  function render() {
+    const termo = busca.value.trim().toLowerCase();
+    const filtrando = !!termo;
+    const visiveis = filtrando ? itens.filter((it) => it.titulo.toLowerCase().includes(termo)) : itens;
+    corpo.replaceChildren(...visiveis.map((it, i) => linha(it, i, visiveis.length, filtrando)));
+    avisoVazio.hidden = itens.length > 0;
+    avisoNada.hidden = !(filtrando && visiveis.length === 0);
+    if (contador) contador.innerHTML = `<b>${itens.length}</b>${itens.length === 1 ? 'item' : 'itens'}`;
+  }
+  render();
+
+  busca.addEventListener('input', render);
+
+  // ------------------------------------------------------------ mover / ordenar
+  async function moverItem(id, direcao) {
+    try {
+      await api('POST', `/api/itens/${id}/ordem`, { direcao });
+      const idx = itens.findIndex((it) => it.id === id);
+      const outro = direcao === 'subir' ? idx - 1 : idx + 1;
+      if (idx !== -1 && outro >= 0 && outro < itens.length) {
+        [itens[idx], itens[outro]] = [itens[outro], itens[idx]];
+      }
+      render();
+    } catch (e) {
+      avisar(e, 'Não deu pra mudar a ordem');
+    }
+  }
+
+  $$('[data-ordenar]', pagina).forEach((b) => b.addEventListener('click', async () => {
+    try {
+      const r = await api('POST', `/api/colecoes/${colecaoId}/reordenar-itens`, { criterio: b.dataset.ordenar, direcao: b.dataset.dir });
+      itens = r.itens.map((i) => ({ id: i.id, titulo: i.titulo, ano: i.ano, regiao: i.regiao, estado: i.estado, observacoes: i.observacoes, foto: i.foto }));
+      busca.value = '';
+      render();
+    } catch (e) {
+      avisar(e, 'Não deu pra ordenar');
+    }
+  }));
+
+  // ------------------------------------------------------------ adicionar item
+  const formNovo = $('#form-novo-item');
+  const dados = (prefixo) => ({
+    titulo: $(`#${prefixo}-titulo`).value.trim(),
+    ano: $(`#${prefixo}-ano`).value.trim(),
+    regiao: $(`#${prefixo}-regiao`).value.trim(),
+    estado: $(`#${prefixo}-estado`).value.trim(),
+    observacoes: $(`#${prefixo}-observacoes`).value.trim(),
+    foto: $(`#${prefixo}-foto`).value.trim(),
+  });
+
+  formNovo.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const d = dados('novo-item');
+    if (!d.titulo) { avisar(erroSimples('O item precisa de um título.')); return; }
+    const botao = $('button[type="submit"]', formNovo);
+    botao.disabled = true;
+    try {
+      const r = await api('POST', `/api/colecoes/${colecaoId}/itens`, d);
+      itens.push({ id: r.item.id, titulo: r.item.titulo, ano: r.item.ano, regiao: r.item.regiao, estado: r.item.estado, observacoes: r.item.observacoes, foto: r.item.foto });
+      busca.value = '';
+      render();
+      // deixa o formulário pronto pro próximo: mantém região/estado (costumam se repetir num lote)
+      $('#novo-item-titulo').value = '';
+      $('#novo-item-ano').value = '';
+      $('#novo-item-observacoes').value = '';
+      setFoto('novo-item', '');
+      const salvo = $('.item-salvo', formNovo);
+      salvo.hidden = false;
+      clearTimeout(salvo._t);
+      salvo._t = setTimeout(() => { salvo.hidden = true; }, 2000);
+      $('#novo-item-titulo').focus();
+    } catch (err) {
+      avisar(err, 'Não deu pra adicionar o item');
+    } finally {
+      botao.disabled = false;
+    }
+  });
+
+  // ------------------------------------------------------------ editar item
+  const modalItem = $('#modal-editar-item');
+  const formItem = $('#form-editar-item');
+  const abrirModal = (m) => { try { m.showModal(); } catch { m.setAttribute('open', ''); } };
+  const fecharModal = (m) => { try { m.close(); } catch { m.removeAttribute('open'); } };
+
+  function abrirEdicao(item) {
+    $('#ed-item-id').value = item.id;
+    $('#ed-item-titulo').value = item.titulo;
+    $('#ed-item-ano').value = item.ano || '';
+    $('#ed-item-regiao').value = item.regiao || '';
+    $('#ed-item-estado').value = item.estado || '';
+    $('#ed-item-observacoes').value = item.observacoes || '';
+    setFoto('ed-item', item.foto || '');
+    abrirModal(modalItem);
+    $('#ed-item-titulo').focus();
+  }
+  modalItem.querySelector('.fechar')?.addEventListener('click', () => fecharModal(modalItem));
+  modalItem.querySelector('.fechar-modal')?.addEventListener('click', () => fecharModal(modalItem));
+
+  formItem.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = Number($('#ed-item-id').value);
+    const d = dados('ed-item');
+    if (!d.titulo) { avisar(erroSimples('O item precisa de um título.')); return; }
+    try {
+      const r = await api('PUT', `/api/itens/${id}`, d);
+      const idx = itens.findIndex((it) => it.id === id);
+      if (idx !== -1) itens[idx] = { id: r.item.id, titulo: r.item.titulo, ano: r.item.ano, regiao: r.item.regiao, estado: r.item.estado, observacoes: r.item.observacoes, foto: r.item.foto };
+      render();
+      fecharModal(modalItem);
+    } catch (err) {
+      avisar(err, 'Não deu pra salvar o item');
+    }
+  });
+
+  // ------------------------------------------------------------ remover item
+  async function removerItem(item) {
+    if (!confirm(`Remover "${item.titulo}" desta coleção?`)) return;
+    try {
+      await api('DELETE', `/api/itens/${item.id}`);
+      itens = itens.filter((it) => it.id !== item.id);
+      render();
+    } catch (e) {
+      avisar(e, 'Não deu pra remover o item');
+    }
+  }
+
+  // ------------------------------------------------------------ escolher / enviar foto
+  const modalFoto = $('#modal-foto');
+  const bibFoto = $('#foto-biblioteca');
+  const statusFoto = $('.foto-status', modalFoto);
+  let alvoFoto = null; // prefixo do formulário que vai receber a foto
+
+  function escolher(url) {
+    if (alvoFoto) setFoto(alvoFoto, url);
+    fecharModal(modalFoto);
+  }
+
+  function itemFoto(a) {
+    const li = document.createElement('li');
+    li.className = 'foto-item';
+    li.style.backgroundImage = `url("${a.url}")`;
+    li.title = a.nome_original;
+    li.onclick = () => escolher(a.url);
+    return li;
+  }
+
+  async function carregarBibFoto() {
+    bibFoto.innerHTML = '<li class="vazio">carregando…</li>';
+    try {
+      const anexos = await api('GET', '/api/anexos');
+      const imagens = anexos.filter((a) => IMG.test(a.arquivo));
+      bibFoto.replaceChildren(...imagens.map(itemFoto));
+      if (!imagens.length) bibFoto.innerHTML = '<li class="vazio">nenhuma imagem na biblioteca ainda. Envie uma acima.</li>';
+    } catch (e) {
+      bibFoto.innerHTML = '<li class="vazio">não consegui carregar as imagens</li>';
+      avisar(e, 'A biblioteca não carregou');
+    }
+  }
+
+  $$('[data-escolher-foto]', pagina.ownerDocument).forEach((b) => b.addEventListener('click', () => {
+    alvoFoto = b.dataset.escolherFoto;
+    statusFoto.textContent = '';
+    abrirModal(modalFoto);
+    carregarBibFoto();
+  }));
+  $$('[data-limpar-foto]', pagina.ownerDocument).forEach((b) => b.addEventListener('click', () => setFoto(b.dataset.limparFoto, '')));
+
+  modalFoto.querySelector('.fechar')?.addEventListener('click', () => fecharModal(modalFoto));
+
+  $('#btn-enviar-foto').addEventListener('click', () => $('#foto-arquivo').click());
+  $('#foto-arquivo').addEventListener('change', async (e) => {
+    const bruto = e.target.files[0];
+    e.target.value = '';
+    if (!bruto) return;
+    if (!/^image\//.test(bruto.type)) { avisar(erroSimples('Escolha um arquivo de imagem.')); return; }
+    statusFoto.textContent = 'enviando…';
+    try {
+      const { arquivo, dims } = await prepararImagem(bruto, $('#foto-otimizar').checked);
+      if (arquivo.size > maxBytes) throw erroSimples(`"${bruto.name}" tem ${(arquivo.size / 1048576).toFixed(1)} MB e o limite é ${pagina.dataset.maxMb} MB.`);
+      const a = await subir(arquivo, dims, (p) => { statusFoto.textContent = `enviando… ${Math.round(p * 100)}%`; });
+      statusFoto.textContent = '';
+      escolher(a.url);
+    } catch (err) {
+      statusFoto.textContent = '';
+      avisar(err, 'O envio falhou');
     }
   });
 }

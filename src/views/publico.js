@@ -236,8 +236,30 @@ ${p.html}
 }
 
 function grade(colecoes) {
-  return colecoes.map((c) =>
-    `                    <a class="${c.estilo}" href="/colecoes/${c.slug}">${c.nome}<small>${c.subtitulo}</small></a>`).join('\n');
+  return colecoes.map((c) => {
+    const n = c.total_itens || 0;
+    const info = n > 0 ? `${n} ${n === 1 ? 'item' : 'itens'}` : c.subtitulo;
+    return `                    <a class="${esc(c.estilo)}" href="/colecoes/${c.slug}">${esc(c.nome)}<small>${esc(info || '')}</small></a>`;
+  }).join('\n');
+}
+
+const RE_IMG = /\.(webp|png|jpe?g|gif)$/i;
+
+function gradeItens(itens) {
+  const cartoes = itens.map((i) => {
+    const foto = i.foto && RE_IMG.test(i.foto)
+      ? `<span class="item-foto" style="background-image:url('${esc(i.foto)}')"></span>`
+      : '<span class="item-foto sem-foto">sem foto</span>';
+    const meta = [i.ano, i.estado].filter(Boolean).map(esc).join(' &middot; ');
+    return `                        <li class="cat-item">
+                            ${foto}
+                            <strong>${esc(i.titulo)}</strong>
+                            ${meta ? `<small>${meta}</small>` : ''}
+                        </li>`;
+  }).join('\n');
+  return `                <ul class="colecao-itens">
+${cartoes}
+                </ul>`;
 }
 
 function colecoes() {
@@ -271,16 +293,23 @@ function colecao(chave) {
   if (!item || !item.visivel) return null;
   const nomes = { consoles: 'Consoles', livros: 'Livros', filmes: 'Filmes', 'jogos-pc': 'Jogos de PC' };
   const nome = nomes[chave] || item.subtitulo || item.nome;
+  const itens = db.itensDaColecao(item.id);
+  const temItens = itens.length > 0;
+  const corpo = temItens
+    ? gradeItens(itens)
+    : emObras('Em construção', 'Tô catalogando essa coleção. Volte mais tarde que vai ter lista, foto e história de cada item.');
   return pagina({
     titulo: `Coleção: ${nome} :: HB Hub`,
-    descricao: `Coleção de ${nome} do HB.`,
+    descricao: temItens
+      ? `Coleção de ${nome} do HB: ${itens.length} ${itens.length === 1 ? 'item catalogado' : 'itens catalogados'}.`
+      : `Coleção de ${nome} do HB.`,
     aba: 'colecoes',
     aqui: chave,
-    noindex: true, // ainda "em construção"
+    noindex: !temItens, // coleção vazia ainda é "em construção": não indexa
     seo: { caminho: `/colecoes/${chave}` },
-    miolo: `                <h1 class="bem-vindo">Coleção: ${nome}</h1>
+    miolo: `                <h1 class="bem-vindo">Coleção: ${esc(nome)}</h1>
 
-${emObras('Em construção', 'Tô catalogando essa coleção. Volte mais tarde que vai ter lista, foto e história de cada item.')}
+${corpo}
 
                 <p><a href="/colecoes">&laquo; voltar pras coleções</a></p>`,
   });

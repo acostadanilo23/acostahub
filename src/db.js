@@ -135,7 +135,8 @@ const q = {
   sessaoApagar: db.prepare(`DELETE FROM sessoes WHERE id_hash = ?`),
   sessoesVelhas: db.prepare(`DELETE FROM sessoes WHERE expira <= ?`),
 
-  colecoesPorGrupo: db.prepare(`SELECT * FROM colecoes WHERE visivel = 1 AND grupo = ? ORDER BY ordem`),
+  colecoesPorGrupo: db.prepare(`SELECT c.*, (SELECT COUNT(*) FROM itens WHERE colecao_id = c.id) AS total_itens FROM colecoes c WHERE c.visivel = 1 AND c.grupo = ? ORDER BY c.ordem`),
+  colecoesComItens: db.prepare(`SELECT c.slug, MAX(i.atualizado_em) AS atualizado_em FROM colecoes c JOIN itens i ON i.colecao_id = c.id WHERE c.visivel = 1 GROUP BY c.id ORDER BY c.ordem`),
   todasColecoes: db.prepare(`SELECT * FROM colecoes WHERE visivel = 1 ORDER BY ordem`),
   todasColecoesAdmin: db.prepare(`SELECT c.*, (SELECT COUNT(*) FROM itens WHERE colecao_id = c.id) AS total_itens FROM colecoes c ORDER BY c.ordem`),
   colecaoPorSlug: db.prepare(`SELECT * FROM colecoes WHERE slug = ?`),
@@ -148,6 +149,15 @@ const q = {
   atualizarOrdemColecao: db.prepare(`UPDATE colecoes SET ordem = ? WHERE id = ?`),
   excluirColecao: db.prepare(`DELETE FROM colecoes WHERE id = ?`),
   itensDaColecao: db.prepare(`SELECT * FROM itens WHERE colecao_id = ? ORDER BY ordem, id`),
+  itemPorId: db.prepare(`SELECT * FROM itens WHERE id = ?`),
+  proximaOrdemItem: db.prepare(`SELECT COALESCE(MAX(ordem), 0) + 1 AS proxima FROM itens WHERE colecao_id = ?`),
+  inserirItem: db.prepare(`INSERT INTO itens (colecao_id, titulo, ano, regiao, estado, observacoes, foto, ordem, criado_em, atualizado_em)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`),
+  atualizarItem: db.prepare(`UPDATE itens SET titulo = ?, ano = ?, regiao = ?, estado = ?, observacoes = ?, foto = ?, atualizado_em = ?
+                            WHERE id = ?`),
+  excluirItem: db.prepare(`DELETE FROM itens WHERE id = ?`),
+  atualizarOrdemItem: db.prepare(`UPDATE itens SET ordem = ? WHERE id = ?`),
+  itensComFoto: db.prepare(`SELECT i.id, i.titulo, c.nome AS colecao_nome FROM itens i JOIN colecoes c ON i.colecao_id = c.id WHERE i.foto LIKE ?`),
 };
 
 function reordenarColecao(id, direcao) {
@@ -160,6 +170,44 @@ function reordenarColecao(id, direcao) {
   todas.splice(outroIdx, 0, removido);
   for (let i = 0; i < todas.length; i++) {
     q.atualizarOrdemColecao.run(i + 1, todas[i].id);
+  }
+  return true;
+}
+
+function reordenarItem(id, direcao) {
+  const item = q.itemPorId.get(id);
+  if (!item) return false;
+  const itens = q.itensDaColecao.all(item.colecao_id);
+  const idx = itens.findIndex((it) => it.id === id);
+  if (idx === -1) return false;
+  const outroIdx = direcao === 'subir' ? idx - 1 : idx + 1;
+  if (outroIdx < 0 || outroIdx >= itens.length) return false;
+  const [removido] = itens.splice(idx, 1);
+  itens.splice(outroIdx, 0, removido);
+  for (let i = 0; i < itens.length; i++) {
+    q.atualizarOrdemItem.run(i + 1, itens[i].id);
+  }
+  return true;
+}
+
+function ordenarColecaoItens(colecaoId, criterio, direcao = 'asc') {
+  const itens = q.itensDaColecao.all(colecaoId);
+  itens.sort((a, b) => {
+    let comp = 0;
+    if (criterio === 'ano') {
+      const anoA = String(a.ano || '').trim();
+      const anoB = String(b.ano || '').trim();
+      if (!anoA && anoB) comp = 1;
+      else if (anoA && !anoB) comp = -1;
+      else comp = anoA.localeCompare(anoB, undefined, { numeric: true });
+    }
+    if (comp === 0) {
+      comp = String(a.titulo || '').localeCompare(String(b.titulo || ''), 'pt-BR', { sensitivity: 'base' });
+    }
+    return direcao === 'desc' ? -comp : comp;
+  });
+  for (let i = 0; i < itens.length; i++) {
+    q.atualizarOrdemItem.run(i + 1, itens[i].id);
   }
   return true;
 }
@@ -195,6 +243,7 @@ module.exports = {
   limparSessoes: () => q.sessoesVelhas.run(Date.now()),
 
   colecoesPorGrupo: (grupo) => q.colecoesPorGrupo.all(grupo),
+  colecoesComItens: () => q.colecoesComItens.all(),
   todasColecoes: () => q.todasColecoes.all(),
   todasColecoesAdmin: () => q.todasColecoesAdmin.all(),
   colecaoPorSlug: (slug) => q.colecaoPorSlug.get(slug),
@@ -207,4 +256,38 @@ module.exports = {
   reordenarColecao,
   excluirColecao: (id) => q.excluirColecao.run(id),
   itensDaColecao: (colecaoId) => q.itensDaColecao.all(colecaoId),
+  itemPorId: (id) => q.itemPorId.get(id),
+  proximaOrdemItem: (colecaoId) => q.proximaOrdemItem.get(colecaoId).proxima,
+  inserirItem: (item) => {
+    const agora = new Date().toISOString();
+    return Number(q.inserirItem.run(
+      item.colecao_id,
+      item.titulo,
+      item.ano || '',
+      item.regiao || '',
+      item.estado || '',
+      item.observacoes || '',
+      item.foto || '',
+      item.ordem || 0,
+      agora,
+      agora
+    ).lastInsertRowid);
+  },
+  atualizarItem: (id, item) => {
+    const agora = new Date().toISOString();
+    return q.atualizarItem.run(
+      item.titulo,
+      item.ano || '',
+      item.regiao || '',
+      item.estado || '',
+      item.observacoes || '',
+      item.foto || '',
+      agora,
+      id
+    );
+  },
+  excluirItem: (id) => q.excluirItem.run(id),
+  reordenarItem,
+  ordenarColecaoItens,
+  itensComFoto: (arquivo) => q.itensComFoto.all(`%${arquivo}%`),
 };

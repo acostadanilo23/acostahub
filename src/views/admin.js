@@ -253,7 +253,7 @@ function colecoes(lista) {
                 <tr data-col-id="${c.id}">
                     <td class="col-estilo"><span class="amostra-cartucho ${esc(c.estilo)}" title="${esc(c.estilo)}"></span></td>
                     <td>
-                        <span class="tit">${esc(c.nome)}</span>
+                        <a class="tit" href="/admin/colecoes/${c.id}">${esc(c.nome)}</a>
                         ${c.subtitulo ? `<small>${esc(c.subtitulo)}</small>` : ''}
                         <small class="slug-info"><a href="/colecoes/${esc(c.slug)}" target="_blank">/colecoes/${esc(c.slug)}</a></small>
                     </td>
@@ -265,6 +265,7 @@ function colecoes(lista) {
                         <button type="button" class="btn-ordem" data-mover-colecao="${c.id}" data-dir="descer"${i === lista.length - 1 ? ' disabled' : ''} title="Descer">&#9660;</button>
                     </td>
                     <td class="acoes">
+                        <a class="link-acao" href="/admin/colecoes/${c.id}">itens</a>
                         <button type="button" class="link-acao" data-visibilidade-colecao="${c.id}" data-visivel="${c.visivel ? '0' : '1'}">${c.visivel ? 'esconder' : 'mostrar'}</button>
                         <button type="button" class="link-acao" data-editar-colecao='${esc(JSON.stringify(c))}'>editar</button>
                         <button type="button" class="link-perigo" data-excluir-colecao="${c.id}" data-nome="${esc(c.nome)}" data-itens="${c.total_itens || 0}">excluir</button>
@@ -350,5 +351,130 @@ function colecoes(lista) {
     </dialog>`, { js: true });
 }
 
-module.exports = { login, painel, editor, colecoes, ESTILOS_CARTUCHO };
+const ESTADOS_COMUNS = ['completo', 'na caixa', 'só mídia', 'só disco', 'lacrado', 'sem caixa', 'com manual', 'incompleto'];
+const REGIOES_COMUNS = ['NTSC-U', 'NTSC-J', 'PAL', 'BR', 'Americano', 'Japonês', 'Europeu'];
+
+function colecaoItens(c, itens, anexos) {
+  const dados = itens.map((i) => ({
+    id: i.id, titulo: i.titulo, ano: i.ano, regiao: i.regiao,
+    estado: i.estado, observacoes: i.observacoes, foto: i.foto,
+  }));
+  const total = itens.length;
+  const opcoesLista = (id, valores) => `<datalist id="${id}">${valores.map((v) => `<option value="${esc(v)}">`).join('')}</datalist>`;
+
+  const campoFoto = (prefixo) => `
+                <div class="campo campo-foto">
+                    <label>Foto</label>
+                    <div class="foto-escolha">
+                        <span class="foto-preview" id="${prefixo}-foto-preview">sem foto</span>
+                        <span class="foto-botoes">
+                            <button type="button" class="btn cinza" data-escolher-foto="${prefixo}">Escolher / enviar foto</button>
+                            <button type="button" class="link-perigo" data-limpar-foto="${prefixo}" hidden>remover foto</button>
+                        </span>
+                        <input type="hidden" id="${prefixo}-foto" name="foto" value="">
+                    </div>
+                </div>`;
+
+  return casca(`Itens: ${c.nome}`, `${barra('colecoes')}
+    <main class="adm-miolo">
+        <p class="voltar-itens"><a href="/admin/colecoes">&laquo; todas as coleções</a></p>
+        <div class="adm-numeros">
+            <div><b>${total}</b>${total === 1 ? 'item' : 'itens'}</div>
+            <div><span class="amostra-cartucho ${esc(c.estilo)}" style="width:40px;height:20px"></span><span style="display:block;margin-top:4px">cor</span></div>
+            <div><b>${c.grupo === 'videogames' ? 'VG' : 'Outros'}</b>grupo</div>
+            <div><b>${c.visivel ? 'sim' : 'não'}</b><a href="/colecoes/${esc(c.slug)}" target="_blank">ver no site</a></div>
+        </div>
+
+        <section class="painel" id="pagina-itens" data-colecao-id="${c.id}" data-max-mb="${cfg.UPLOAD_MAX_MB}" data-itens='${esc(JSON.stringify(dados))}'>
+            <h2>Itens de ${esc(c.nome)} <small>catalogue os itens desta coleção</small></h2>
+            <div class="itens-controles dentro">
+                <input type="search" id="busca-itens" placeholder="Filtrar por título&hellip;" autocomplete="off">
+                <span class="itens-ordenar">
+                    ordenar:
+                    <button type="button" class="link-acao" data-ordenar="titulo" data-dir="asc">título A&ndash;Z</button>
+                    <button type="button" class="link-acao" data-ordenar="titulo" data-dir="desc">título Z&ndash;A</button>
+                    <button type="button" class="link-acao" data-ordenar="ano" data-dir="asc">ano &#9650;</button>
+                    <button type="button" class="link-acao" data-ordenar="ano" data-dir="desc">ano &#9660;</button>
+                </span>
+            </div>
+            <table class="adm-tabela adm-itens">
+                <thead><tr><th>Foto</th><th>Título</th><th>Ano</th><th>Estado</th><th>Ordem</th><th></th></tr></thead>
+                <tbody id="lista-itens"></tbody>
+            </table>
+            <p class="itens-vazio dentro" hidden>Nenhum item ainda. Cadastre o primeiro no formulário abaixo.</p>
+            <p class="itens-nada-encontrado dentro" hidden>Nenhum item bate com a busca.</p>
+        </section>
+
+        <section class="painel" style="margin-top:16px">
+            <h2>+ Adicionar item</h2>
+            <form id="form-novo-item" class="form-colecao form-item dentro" autocomplete="off">
+                <div class="campo">
+                    <label for="novo-item-titulo">Título</label>
+                    <input id="novo-item-titulo" name="titulo" placeholder="Ex: Gran Turismo 4" maxlength="200" required>
+                    <small>Só o título é obrigatório. Depois de salvar, o formulário já fica pronto pro próximo.</small>
+                </div>
+                <div class="campo-triplo">
+                    <div class="campo">
+                        <label for="novo-item-ano">Ano</label>
+                        <input id="novo-item-ano" name="ano" placeholder="Ex: 2004" maxlength="20">
+                    </div>
+                    <div class="campo">
+                        <label for="novo-item-regiao">Região</label>
+                        <input id="novo-item-regiao" name="regiao" list="regioes-comuns" maxlength="50">
+                    </div>
+                    <div class="campo">
+                        <label for="novo-item-estado">Estado</label>
+                        <input id="novo-item-estado" name="estado" list="estados-comuns" maxlength="50">
+                    </div>
+                </div>
+                <div class="campo">
+                    <label for="novo-item-observacoes">Observações</label>
+                    <textarea id="novo-item-observacoes" name="observacoes" rows="2" maxlength="500" placeholder="detalhes, história, defeitos&hellip;"></textarea>
+                </div>
+                ${campoFoto('novo-item')}
+                <div class="form-acoes">
+                    <button type="submit" class="btn">Adicionar item &#8250;</button>
+                    <span class="item-salvo" hidden>item adicionado!</span>
+                </div>
+            </form>
+        </section>
+    </main>
+
+    ${opcoesLista('estados-comuns', ESTADOS_COMUNS)}
+    ${opcoesLista('regioes-comuns', REGIOES_COMUNS)}
+
+    <dialog id="modal-editar-item" class="janela modal-colecao" aria-labelledby="modal-item-titulo">
+        <div class="janela-titulo"><span id="modal-item-titulo">Editar item</span><button type="button" class="fechar" aria-label="Fechar">&times;</button></div>
+        <form id="form-editar-item" class="janela-corpo form-colecao" autocomplete="off">
+            <input type="hidden" id="ed-item-id" name="id">
+            <div class="campo"><label>Título <input id="ed-item-titulo" name="titulo" maxlength="200" required></label></div>
+            <div class="campo-triplo">
+                <div class="campo"><label>Ano <input id="ed-item-ano" name="ano" maxlength="20"></label></div>
+                <div class="campo"><label>Região <input id="ed-item-regiao" name="regiao" list="regioes-comuns" maxlength="50"></label></div>
+                <div class="campo"><label>Estado <input id="ed-item-estado" name="estado" list="estados-comuns" maxlength="50"></label></div>
+            </div>
+            <div class="campo"><label>Observações <textarea id="ed-item-observacoes" name="observacoes" rows="2" maxlength="500"></textarea></label></div>
+            ${campoFoto('ed-item')}
+            <div class="modal-botoes-form">
+                <button type="button" class="btn cinza fechar-modal">Cancelar</button>
+                <button type="submit" class="btn">Salvar alterações</button>
+            </div>
+        </form>
+    </dialog>
+
+    <dialog id="modal-foto" class="janela modal-colecao modal-foto" aria-labelledby="modal-foto-titulo">
+        <div class="janela-titulo"><span id="modal-foto-titulo">Escolher foto</span><button type="button" class="fechar" aria-label="Fechar">&times;</button></div>
+        <div class="janela-corpo">
+            <div class="foto-enviar">
+                <input type="file" id="foto-arquivo" hidden accept="image/webp,image/png,image/jpeg,image/gif">
+                <button type="button" class="btn azul" id="btn-enviar-foto">Enviar nova imagem</button>
+                <label class="ed-check"><input type="checkbox" id="foto-otimizar" checked> otimizar (WebP, até 1280px)</label>
+                <span class="foto-status"></span>
+            </div>
+            <ul id="foto-biblioteca" class="foto-biblioteca"><li class="vazio">carregando&hellip;</li></ul>
+        </div>
+    </dialog>`, { js: true });
+}
+
+module.exports = { login, painel, editor, colecoes, colecaoItens, ESTILOS_CARTUCHO };
 

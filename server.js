@@ -325,6 +325,8 @@ function sitemap() {
       .filter(([, lista]) => lista.length)
       .map(([s, lista]) => [`/${s}`, maisNovo(lista)]),
     ['/colecoes', ''],
+    // coleções visíveis com pelo menos um item (as vazias ficam de fora, têm noindex)
+    ...db.colecoesComItens().map((c) => [`/colecoes/${c.slug}`, c.atualizado_em]),
     ...posts.map((p) => [urlPost(p), p.atualizado_em]),
   ];
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -363,6 +365,14 @@ rota('POST', '/admin/sair', (req, res) => {
 
 rota('GET', '/admin', (req, res) => html(req, res, admin.painel(db.todosPosts(), db.anexos(), contador.relatorio(), chat.quantos())), { restrito: true });
 rota('GET', '/admin/colecoes', (req, res) => html(req, res, admin.colecoes(db.todasColecoesAdmin())), { restrito: true });
+rota('GET', '/admin/colecoes/(\\d+)', (req, res, [id]) => {
+  const numId = Number(id);
+  const c = db.colecaoPorId(numId);
+  if (!c) return nao(req, res);
+  const itens = db.itensDaColecao(numId);
+  const anexos = db.anexos();
+  return html(req, res, admin.colecaoItens(c, itens, anexos));
+}, { restrito: true });
 rota('GET', '/admin/novo', (req, res) => html(req, res, admin.editor(null)), { restrito: true });
 rota('GET', '/admin/editar/(\\d+)', (req, res, [id]) => {
   const p = db.postPorId(Number(id));
@@ -395,6 +405,12 @@ rota('DELETE', '/api/anexos/(\\d+)', (req, res, [id]) => {
   if (!a) throw new ErroHttp(404, 'Arquivo não encontrado.');
   const emUso = db.todosPosts().map((p) => db.postPorId(p.id)).filter((p) => p.conteudo.includes(a.arquivo));
   if (emUso.length) throw new ErroHttp(409, `Esse arquivo ainda é usado em: ${emUso.map((p) => p.titulo).join(', ')}.`);
+  const emUsoItens = db.itensComFoto(a.arquivo);
+  if (emUsoItens.length) {
+    const nomesItens = emUsoItens.slice(0, 3).map((i) => `"${i.titulo}" (${i.colecao_nome})`).join(', ');
+    const mais = emUsoItens.length > 3 ? ` e mais ${emUsoItens.length - 3}` : '';
+    throw new ErroHttp(409, `Esse arquivo ainda é usado no(s) item(ns): ${nomesItens}${mais}.`);
+  }
   fs.rmSync(path.join(db.PASTA_UPLOADS, a.arquivo), { force: true });
   db.excluirAnexo(a.id);
   json(req, res, { ok: true });
@@ -458,6 +474,80 @@ rota('DELETE', '/api/colecoes/(\\d+)', (req, res, [id]) => {
   if (!c) throw new ErroHttp(404, 'Coleção não encontrada.');
   db.excluirColecao(numId);
   json(req, res, { ok: true });
+}, { restrito: true });
+
+// --- API de itens de coleção
+
+rota('GET', '/api/colecoes/(\\d+)/itens', (req, res, [id]) => {
+  const numId = Number(id);
+  const c = db.colecaoPorId(numId);
+  if (!c) throw new ErroHttp(404, 'Coleção não encontrada.');
+  json(req, res, db.itensDaColecao(numId));
+}, { restrito: true });
+
+rota('POST', '/api/colecoes/(\\d+)/itens', async (req, res, [id]) => {
+  const colecaoId = Number(id);
+  const c = db.colecaoPorId(colecaoId);
+  if (!c) throw new ErroHttp(404, 'Coleção não encontrada.');
+  const d = await lerJson(req);
+  const titulo = String(d.titulo || '').trim().slice(0, 200);
+  if (!titulo) throw new ErroHttp(400, 'O item precisa de um título.');
+  const ano = String(d.ano || '').trim().slice(0, 20);
+  const regiao = String(d.regiao || '').trim().slice(0, 50);
+  const estado = String(d.estado || '').trim().slice(0, 50);
+  const observacoes = String(d.observacoes || '').trim().slice(0, 500);
+  const foto = String(d.foto || '').trim().slice(0, 500);
+  const ordem = db.proximaOrdemItem(colecaoId);
+  const itemId = db.inserirItem({ colecao_id: colecaoId, titulo, ano, regiao, estado, observacoes, foto, ordem });
+  const item = db.itemPorId(itemId);
+  json(req, res, { ok: true, item }, 201);
+}, { restrito: true });
+
+rota('PUT', '/api/itens/(\\d+)', async (req, res, [id]) => {
+  const numId = Number(id);
+  const item = db.itemPorId(numId);
+  if (!item) throw new ErroHttp(404, 'Item não encontrado.');
+  const d = await lerJson(req);
+  const titulo = String(d.titulo || '').trim().slice(0, 200);
+  if (!titulo) throw new ErroHttp(400, 'O item precisa de um título.');
+  const ano = String(d.ano !== undefined ? d.ano : item.ano).trim().slice(0, 20);
+  const regiao = String(d.regiao !== undefined ? d.regiao : item.regiao).trim().slice(0, 50);
+  const estado = String(d.estado !== undefined ? d.estado : item.estado).trim().slice(0, 50);
+  const observacoes = String(d.observacoes !== undefined ? d.observacoes : item.observacoes).trim().slice(0, 500);
+  const foto = String(d.foto !== undefined ? d.foto : item.foto).trim().slice(0, 500);
+  db.atualizarItem(numId, { titulo, ano, regiao, estado, observacoes, foto });
+  const atualizado = db.itemPorId(numId);
+  json(req, res, { ok: true, item: atualizado });
+}, { restrito: true });
+
+rota('DELETE', '/api/itens/(\\d+)', (req, res, [id]) => {
+  const numId = Number(id);
+  const item = db.itemPorId(numId);
+  if (!item) throw new ErroHttp(404, 'Item não encontrado.');
+  db.excluirItem(numId);
+  json(req, res, { ok: true });
+}, { restrito: true });
+
+rota('POST', '/api/itens/(\\d+)/ordem', async (req, res, [id]) => {
+  const numId = Number(id);
+  const d = await lerJson(req);
+  const direcao = d.direcao === 'subir' ? 'subir' : (d.direcao === 'descer' ? 'descer' : null);
+  if (!direcao) throw new ErroHttp(400, 'Direção inválida.');
+  const ok = db.reordenarItem(numId, direcao);
+  if (!ok) throw new ErroHttp(400, 'Não é possível mover nessa direção.');
+  json(req, res, { ok: true });
+}, { restrito: true });
+
+rota('POST', '/api/colecoes/(\\d+)/reordenar-itens', async (req, res, [id]) => {
+  const colecaoId = Number(id);
+  const c = db.colecaoPorId(colecaoId);
+  if (!c) throw new ErroHttp(404, 'Coleção não encontrada.');
+  const d = await lerJson(req);
+  const criterio = d.criterio;
+  const direcao = d.direcao === 'desc' ? 'desc' : 'asc';
+  if (!['titulo', 'ano'].includes(criterio)) throw new ErroHttp(400, 'Critério inválido.');
+  db.ordenarColecaoItens(colecaoId, criterio, direcao);
+  json(req, res, { ok: true, itens: db.itensDaColecao(colecaoId) });
 }, { restrito: true });
 
 const ehJson = (caminho) => caminho.startsWith('/api/') || caminho.startsWith('/chat/');

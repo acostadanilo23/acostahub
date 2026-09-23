@@ -708,6 +708,44 @@ a.etiqueta:hover { color: #fff; background: #c00 }
   color: #fff;
 }
 
+/* grade de itens de uma coleção */
+.colecao-itens {
+  list-style: none;
+  margin: 12px 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+.cat-item {
+  display: flex;
+  flex-direction: column;
+  padding: 8px;
+  text-align: center;
+  background: #111;
+  border: 2px solid #000;
+  border-radius: 3px;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.1), 3px 3px 0 #000;
+}
+.cat-item .item-foto {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  margin-bottom: 8px;
+  background: #000 center / cover no-repeat;
+  border: 1px solid #333;
+}
+.cat-item .item-foto.sem-foto {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 10px Verdana, sans-serif;
+  color: #555;
+  text-transform: uppercase;
+}
+.cat-item strong { font: 900 13px/1.15 "Trebuchet MS", Verdana, sans-serif; color: #fff }
+.cat-item small { display: block; margin-top: 4px; font: 10px Verdana, sans-serif; color: #fc0 }
+
 /* ---------- bate-papo ---------- */
 .sala-mini { text-align: center; font-size: 11px }
 .sala-mini p { margin: 0 0 4px }

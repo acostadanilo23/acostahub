@@ -432,7 +432,92 @@ input[type="datetime-local"] { color-scheme: dark }
 .modal-colecao .aviso-slug code { color: #000; font-weight: bold }
 .modal-botoes-form { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px }
 
+/* ---------- itens de coleção ---------- */
+.voltar-itens { margin: 0 0 10px; font-size: 12px }
+.itens-controles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  padding: 10px 14px;
+}
+#busca-itens {
+  flex: 1;
+  min-width: 180px;
+  padding: 5px 8px;
+  color: #eee;
+  background: #000;
+  border: 2px inset #444;
+}
+.itens-ordenar { font-size: 11px; color: #888 }
+.itens-ordenar .link-acao { margin: 0 0 0 8px }
+
+.adm-itens .item-foto { width: 52px }
+.adm-itens .item-foto .mini {
+  display: block;
+  width: 44px;
+  height: 44px;
+  background: #222 center / cover no-repeat;
+  border: 1px solid #000;
+}
+.adm-itens td { vertical-align: middle }
+
+.campo-triplo { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px }
+.form-item textarea, .modal-colecao textarea {
+  display: block;
+  width: 100%;
+  padding: 5px 6px;
+  color: #eee;
+  background: #000;
+  border: 2px inset #444;
+  resize: vertical;
+}
+.modal-colecao textarea { color: #000; background: #fff; border: 2px inset #808080 }
+.item-salvo { margin-left: 12px; font-size: 11px; color: #3f3 }
+
+.campo-foto .foto-escolha { display: flex; align-items: center; gap: 12px; flex-wrap: wrap }
+.foto-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  font-size: 10px;
+  color: #666;
+  text-align: center;
+  background: #000 center / cover no-repeat;
+  border: 2px inset #444;
+}
+.modal-colecao .foto-preview { background-color: #fff; border-color: #808080; color: #888 }
+.foto-preview.tem-foto { color: transparent }
+.foto-botoes { display: flex; flex-direction: column; gap: 6px; align-items: flex-start }
+
+.modal-foto { max-width: 560px }
+.foto-enviar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 12px }
+.foto-enviar .ed-check { font-size: 11px; font-weight: normal }
+.foto-status { font-size: 11px; color: #005a00; font-weight: bold }
+.foto-biblioteca {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 8px;
+  max-height: 340px;
+  overflow-y: auto;
+}
+.foto-biblioteca .foto-item {
+  aspect-ratio: 1;
+  background: #ddd center / cover no-repeat;
+  border: 2px solid #808080;
+  cursor: pointer;
+}
+.foto-biblioteca .foto-item:hover { border-color: #a00; box-shadow: 0 0 0 2px #fc0 }
+.foto-biblioteca li.vazio { grid-column: 1 / -1; color: #444; font-size: 12px }
+
 @media (max-width: 900px) {
+  .campo-triplo { grid-template-columns: 1fr }
+  .adm-itens th:nth-child(4), .adm-itens td:nth-child(4) { display: none }
   .editor { grid-template-columns: 1fr }
   .ed-area { grid-template-columns: 1fr; height: 65vh }
   .ed-area:not(.previa) .ed-previa { display: none }
