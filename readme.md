@@ -56,6 +56,11 @@ Rode **uma instância só** (o bate-papo e as travas de login ficam na memória 
 
 Pra gerar a senha dentro do container: `docker compose run --rm hbhub node tools/criar-senha.js`.
 
+### Atualização
+
+O servidor de produção confere a branch `main` a cada 2 minutos e publica sozinho: faz backup do banco,
+reconstrói a imagem e só dá o deploy por concluído se o container ficar saudável. Basta dar push na `main`.
+
 ### Backup
 
 Cópia consistente do banco com o site no ar: `docker exec hbhub node tools/backup-db.js /tmp/blog.db`
