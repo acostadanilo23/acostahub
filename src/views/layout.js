@@ -44,6 +44,31 @@ ${itens.map(([k, href, txt]) => `                        <li><a${k === aqui ? ' 
                 </section>`).join('');
 }
 
+// gifs de decoração (arquivos em public/img/deco): pra pôr mais um, é só somar uma linha
+const QUADRO_ESQ = { gif: 'link.gif', w: 171, h: 220, placa: 'Hyrule' };
+const QUADRO_DIR = { gif: 'pikachu-danca.gif', w: 137, h: 181, placa: 'Pikachu' };
+const MURAL = [
+  { gif: 'triforce.gif', w: 128, h: 96, placa: 'Triforce' },
+  { gif: 'mini-link.gif', w: 50, h: 54, placa: 'Link' },
+  { gif: 'pikachu-pokebola.gif', w: 80, h: 80, placa: 'Pokébola' },
+  { gif: 'dragon-ball.gif', w: 63, h: 96, placa: 'Dragon Ball' },
+  { gif: 'sonic.gif', w: 256, h: 150, placa: 'Sonic' },
+  { gif: 'pikachu-bola.gif', w: 66, h: 70, placa: 'Pika!' },
+  { gif: 'counter-strike.gif', w: 120, h: 155, placa: 'CT' },
+  { gif: 'counter-strike-2.gif', w: 80, h: 80, placa: 'Counter-Strike' },
+  { gif: 'pikachu-corre.gif', w: 80, h: 57, placa: 'Corre!' },
+];
+
+const moldura = (d) => `<figure class="moldura"><img src="${versao(`/img/deco/${d.gif}`)}" width="${d.w}" height="${d.h}" alt="" loading="lazy"><figcaption>${esc(d.placa)}</figcaption></figure>`;
+
+const muralHtml = () => `
+        <section id="mural">
+            <h2>Galeria de gifs</h2>
+            <div class="mural-quadros">
+                ${MURAL.map(moldura).join('\n                ')}
+            </div>
+        </section>`;
+
 const ENQUETE = `
                 <section class="caixa enquete">
                     <h3>Enquete do HB</h3>
@@ -81,6 +106,12 @@ const direitaHtml = () => `
                     <a class="botao" href="/chat">Entrar &#8250;</a>
                 </section>
 
+                <section class="caixa email-mini">
+                    <h3>Fale comigo</h3>
+                    <a href="mailto:${cfg.EMAIL}"><img src="/img/email.gif" width="97" height="59" alt="Mande um e-mail"></a>
+                    <small>mande um e-mail!</small>
+                </section>
+
                 <section class="caixa">
                     <div class="bilhete">
                         <h4>to-do</h4>
@@ -104,6 +135,8 @@ const direitaHtml = () => `
                     <span>${String(contador.total()).padStart(6, '0').split('').map((d) => `<i>${d}</i>`).join('')}</span><br>
                     ${contador.hojeNumeros().visitantes} hoje &middot; contador de verdade
                 </section>
+
+                ${moldura(QUADRO_DIR)}
 
                 <section class="caixa">
                     <h3>Botões</h3>
@@ -194,7 +227,8 @@ function pagina({ titulo, descricao = '', aba = '', aqui = '', miolo, direita = 
 
         <div id="colunas">
 
-            <aside id="esq">${navLateral(aqui, ultimo)}${ENQUETE}
+            <aside id="esq">${navLateral(aqui, ultimo)}
+                ${moldura(QUADRO_ESQ)}${ENQUETE}
             </aside>
 
             <main id="meio">
@@ -202,6 +236,7 @@ ${miolo}
             </main>
 ${direita ? direitaHtml() : ''}
         </div>
+${muralHtml()}
 
         <footer id="rodape">
             <nav>

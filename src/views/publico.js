@@ -236,11 +236,8 @@ ${p.html}
 }
 
 function grade(colecoes) {
-  return colecoes.map((c) => {
-    const n = c.total_itens || 0;
-    const info = n > 0 ? `${n} ${n === 1 ? 'item' : 'itens'}` : c.subtitulo;
-    return `                    <a class="${esc(c.estilo)}" href="/colecoes/${c.slug}">${esc(c.nome)}<small>${esc(info || '')}</small></a>`;
-  }).join('\n');
+  return colecoes.map((c) =>
+    `                    <a class="${esc(c.estilo)}" href="/colecoes/${c.slug}">${esc(c.nome)}</a>`).join('\n');
 }
 
 const RE_IMG = /\.(webp|png|jpe?g|gif)$/i;

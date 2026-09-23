@@ -55,7 +55,7 @@ const SEED_COLECOES = [
   { slug: 'xbox',     nome: 'XBOX',     subtitulo: 'Xbox',               grupo: 'videogames', estilo: 'p-xbox',   ordem: 5  },
   { slug: 'n64',      nome: 'N64',      subtitulo: 'Nintendo 64',        grupo: 'videogames', estilo: 'p-n64',    ordem: 6  },
   { slug: 'wii',      nome: 'Wii',      subtitulo: 'Wii',               grupo: 'videogames', estilo: 'p-wii',    ordem: 7  },
-  { slug: 'consoles', nome: 'Consoles', subtitulo: 'os aparelhos em si', grupo: 'videogames', estilo: 'p-ps3',    ordem: 8  },
+  { slug: 'consoles', nome: 'Consoles', subtitulo: 'os aparelhos em si', grupo: 'videogames', estilo: 'p-consoles', ordem: 8 },
   { slug: 'livros',   nome: 'Livros',   subtitulo: 'a estante',          grupo: 'outros',     estilo: 'p-livros', ordem: 9  },
   { slug: 'filmes',   nome: 'Filmes',   subtitulo: 'DVDs e afins',       grupo: 'outros',     estilo: 'p-filmes', ordem: 10 },
   { slug: 'jogos-pc', nome: 'PC',       subtitulo: 'jogos de PC',        grupo: 'outros',     estilo: 'p-pc',     ordem: 11 },
@@ -67,8 +67,21 @@ function semeaduraColecoes() {
   console.log(`Banco novo: cadastrei ${SEED_COLECOES.length} coleções.`);
 }
 
+// roda uma vez só (marca em ajustes), pra não desfazer se depois trocarem a cor no painel
+function estiloProprioConsoles() {
+  db.ajuste('migracao-estilo-consoles', () => {
+    const c = db.colecaoPorSlug('consoles');
+    if (c && c.estilo === 'p-ps3') {
+      db.atualizarColecao(c.id, { ...c, estilo: 'p-consoles' });
+      console.log('Consoles ganhou estilo próprio (p-consoles).');
+    }
+    return 'feito';
+  });
+}
+
 module.exports = function semente() {
   semeaduraColecoes();
+  estiloProprioConsoles();
   if (db.contarPosts() > 0) return rerenderizar();
   db.inserirPost({
     slug: 'minha-primeira-contribuicao-open-source',

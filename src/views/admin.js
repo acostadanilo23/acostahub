@@ -230,15 +230,16 @@ function editor(p) {
 
 const ESTILOS_CARTUCHO = [
   { id: 'p-ps1', nome: 'Cinza (PlayStation 1)' },
-  { id: 'p-ps2', nome: 'Azul escuro (PlayStation 2)' },
-  { id: 'p-ps3', nome: 'Preto fumê (PlayStation 3)' },
-  { id: 'p-ps4', nome: 'Azul royal (PlayStation 4)' },
-  { id: 'p-xbox', nome: 'Verde (Xbox)' },
-  { id: 'p-n64', nome: 'Colorido 4 cores (Nintendo 64)' },
-  { id: 'p-wii', nome: 'Branco / Azul (Wii)' },
-  { id: 'p-livros', nome: 'Madeira / Estante (Livros)' },
-  { id: 'p-filmes', nome: 'Película cinematográfica (Filmes)' },
-  { id: 'p-pc', nome: 'Bege retrô (PC)' },
+  { id: 'p-ps2', nome: 'Azul escuro + logo PlayStation girando (PS2)' },
+  { id: 'p-ps3', nome: 'Preto fumê + logo PS3 animado (PS3)' },
+  { id: 'p-consoles', nome: 'Preto fumê + consoles animados (Consoles)' },
+  { id: 'p-ps4', nome: 'Azul royal + logo PS4 animado (PS4)' },
+  { id: 'p-xbox', nome: 'Preto e verde + logo Xbox animado (Xbox)' },
+  { id: 'p-n64', nome: 'Logo N64 girando (Nintendo 64)' },
+  { id: 'p-wii', nome: 'Branco / Azul + logo Wii animado (Wii)' },
+  { id: 'p-livros', nome: 'Madeira + leitor animado (Livros)' },
+  { id: 'p-filmes', nome: 'Película + DVD girando (Filmes)' },
+  { id: 'p-pc', nome: 'Bege retrô + computador girando (PC)' },
 ];
 
 function opcoesEstilo(selecionado = 'p-ps1') {
