@@ -411,13 +411,13 @@ p { margin: 0 0 12px }
 .botao:hover, .banner:hover .botao { background: linear-gradient(#ffe46b, #f5a300 50%, #b86a00); color: #fff }
 
 /* ladrilhos das seções */
-.ladrilhos { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px }
+.ladrilhos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px }
 .ladrilhos a {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 92px;
+  height: 64px;
   padding: 6px;
   text-align: center;
   text-decoration: none;
@@ -1042,7 +1042,6 @@ dialog.modal-erro::backdrop { background: rgba(0, 0, 40, .55) }
   #meio { order: -1 }
   #esq, #dir { width: auto; border: 0; border-top: 2px solid #000 }
   #esq { display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px }
-  .ladrilhos { grid-template-columns: 1fr 1fr }
   .banner { padding-right: 90px }
   .banner strong { font-size: 22px }
   .resumo { float: none; width: auto; margin: 0 0 14px }
