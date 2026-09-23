@@ -976,3 +976,221 @@ function iniciarItens(pagina) {
     }
   });
 }
+
+// ---------------------------------------------------------------- ações genéricas (recados, site, decoração)
+
+document.addEventListener('click', async (ev) => {
+  const apagar = ev.target.closest('[data-apagar]');
+  const mover = ev.target.closest('[data-mover]');
+  const aprovar = ev.target.closest('[data-aprovar-recado]');
+  const apagarRecado = ev.target.closest('[data-apagar-recado]');
+  const ativar = ev.target.closest('[data-ativar-enquete]');
+  try {
+    if (apagar) {
+      if (!confirm(apagar.dataset.confirmar || 'Apagar?')) return;
+      await api('DELETE', apagar.dataset.apagar);
+    } else if (mover && !mover.disabled) {
+      await api('POST', mover.dataset.mover, { direcao: mover.dataset.dir });
+    } else if (aprovar) {
+      await api('PUT', `/api/recados/${aprovar.dataset.aprovarRecado}`);
+    } else if (apagarRecado) {
+      if (!confirm(`Apagar o recado de ${apagarRecado.dataset.nome}?`)) return;
+      await api('DELETE', `/api/recados/${apagarRecado.dataset.apagarRecado}`);
+    } else if (ativar) {
+      await api('PUT', `/api/enquetes/${ativar.dataset.ativarEnquete}`, { ativa: ativar.dataset.ativa === '1' });
+    } else {
+      return;
+    }
+    location.reload();
+  } catch (e) {
+    avisar(e, 'Não deu certo');
+  }
+});
+
+// mostra "salvo!" no botão por um instante
+function avisarSalvo(form) {
+  const b = $('button:not([type="button"])', form);
+  const antes = b.textContent;
+  b.textContent = 'Salvo!';
+  setTimeout(() => { b.textContent = antes; }, 1500);
+}
+
+// dimensões de uma imagem (primeiro quadro, no caso do gif)
+async function dimensoes(url) {
+  const bmp = await createImageBitmap(await (await fetch(url)).blob());
+  return { largura: bmp.width, altura: bmp.height };
+}
+
+// envia um arquivo sem converter (gif continua animado, mp3 continua mp3)
+async function enviarOriginal(arquivo, maxMb, status) {
+  if (arquivo.size > maxMb * 1048576) throw erroSimples(`"${arquivo.name}" tem ${(arquivo.size / 1048576).toFixed(1)} MB e o limite é ${maxMb} MB.`);
+  let dims = '';
+  if (/^image\//.test(arquivo.type)) {
+    try { const bmp = await createImageBitmap(arquivo); dims = `${bmp.width}x${bmp.height}`; } catch { /* sem dimensões */ }
+  }
+  try {
+    return await subir(arquivo, dims, (p) => { if (status) status.textContent = `enviando… ${Math.round(p * 100)}%`; });
+  } finally {
+    if (status) status.textContent = '';
+  }
+}
+
+// ---------------------------------------------------------------- painel "Site"
+
+const paginaSite = $('.pagina-site');
+if (paginaSite) iniciarSite(paginaSite);
+
+function iniciarSite(pagina) {
+  const maxMb = Number(pagina.dataset.maxMb);
+  const enviar = (form, fn, titulo) => form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try { await fn(form); } catch (err) { avisar(err, titulo); }
+  });
+  const form = (nome) => $(`[data-form="${nome}"]`, pagina);
+  const linhas = (id) => $(id).value.split('\n').map((l) => l.trim()).filter(Boolean);
+
+  enviar(form('status'), async (f) => {
+    const itens = linhas('#status-texto').map((l) => {
+      const i = l.indexOf(':');
+      if (i < 1) throw erroSimples(`A linha "${l}" precisa de dois-pontos: Rótulo: texto`);
+      return { rotulo: l.slice(0, i).trim(), texto: l.slice(i + 1).trim() };
+    });
+    await api('PUT', '/api/site/status', { linhas: itens });
+    avisarSalvo(f);
+  }, 'Não deu pra salvar o status');
+
+  enviar(form('todo'), async (f) => {
+    const itens = linhas('#todo-texto').map((l) => (/^x\s+/i.test(l) ? { texto: l.replace(/^x\s+/i, ''), feito: true } : { texto: l, feito: false }));
+    await api('PUT', '/api/site/todo', { itens });
+    avisarSalvo(f);
+  }, 'Não deu pra salvar o to-do');
+
+  enviar(form('enquete'), async () => {
+    const d = { pergunta: $('#enquete-pergunta').value, opcoes: linhas('#enquete-opcoes') };
+    if (!d.pergunta.trim()) throw erroSimples('A enquete precisa de uma pergunta.');
+    if (pagina.querySelector('[data-ativa="0"]') && !confirm('Isso encerra a enquete que está no ar agora. Continuar?')) return;
+    await api('POST', '/api/enquetes', d);
+    location.reload();
+  }, 'Não deu pra criar a enquete');
+
+  enviar(form('novidade'), async () => {
+    await api('POST', '/api/novidades', { dia: $('#novidade-dia').value, texto: $('#novidade-texto').value });
+    location.reload();
+  }, 'Não deu pra adicionar a novidade');
+
+  enviar(form('link'), async () => {
+    await api('POST', '/api/links', { nome: $('#link-nome').value, url: $('#link-url').value, botao: $('#link-botao').value });
+    location.reload();
+  }, 'Não deu pra adicionar o link');
+
+  enviar(form('musica'), async (f) => {
+    await api('PUT', '/api/site/musica', { src: $('#musica-src').value, titulo: $('#musica-titulo').value });
+    avisarSalvo(f);
+  }, 'Não deu pra salvar a rádio');
+
+  // "enviar arquivo novo" direto pra um <select> (botão do link, música)
+  const input = $('#arquivo-site');
+  let alvo = null;
+  $$('[data-enviar-para]', pagina).forEach((b) => b.addEventListener('click', () => {
+    alvo = $(`#${b.dataset.enviarPara}`);
+    input.accept = b.dataset.aceita;
+    input.click();
+  }));
+  input.addEventListener('change', async () => {
+    const arquivo = input.files[0];
+    input.value = '';
+    if (!arquivo || !alvo) return;
+    const status = $('.envio-status', alvo.closest('form'));
+    try {
+      const a = await enviarOriginal(arquivo, maxMb, status);
+      if (!alvo.dataset.tipos.split(',').includes(a.tipo)) throw erroSimples(`"${a.nome_original}" foi pra biblioteca, mas esse tipo não serve aqui.`);
+      alvo.append(new Option(a.nome_original, a.url, true, true));
+    } catch (err) {
+      avisar(err, 'O envio falhou');
+    }
+  });
+}
+
+// ---------------------------------------------------------------- painel "Decoração"
+
+const paginaDeco = $('.pagina-deco');
+if (paginaDeco) iniciarDecoracao(paginaDeco);
+
+function iniciarDecoracao(pagina) {
+  const maxMb = Number(pagina.dataset.maxMb);
+  const bib = $('#deco-biblioteca');
+  const previa = $('#deco-previa');
+  const status = $('.envio-status', pagina);
+  const IMG = /\.(gif|png|webp|jpe?g)$/i;
+  let escolhido = null;
+
+  async function escolher(url) {
+    try {
+      escolhido = { src: url, ...(await dimensoes(url)) };
+    } catch (e) {
+      avisar(e, 'Não consegui ler essa imagem');
+      return;
+    }
+    previa.textContent = '';
+    previa.style.backgroundImage = `url("${url}")`;
+    previa.classList.add('tem-foto');
+    $$('.foto-item', bib).forEach((li) => li.classList.toggle('escolhido', li.dataset.url === url));
+  }
+
+  function itemBib(a) {
+    const li = document.createElement('li');
+    li.className = 'foto-item';
+    li.dataset.url = a.url;
+    li.style.backgroundImage = `url("${a.url}")`;
+    li.title = a.nome_original;
+    li.onclick = () => escolher(a.url);
+    return li;
+  }
+
+  (async () => {
+    try {
+      const imagens = (await api('GET', '/api/anexos')).filter((a) => IMG.test(a.arquivo));
+      bib.replaceChildren(...imagens.map(itemBib));
+      if (!imagens.length) bib.innerHTML = '<li class="vazio">nenhuma imagem na biblioteca ainda. Envie um gif acima.</li>';
+    } catch (e) {
+      bib.innerHTML = '<li class="vazio">não consegui carregar a biblioteca</li>';
+      avisar(e, 'A biblioteca não carregou');
+    }
+  })();
+
+  $('#deco-enviar').addEventListener('click', () => $('#deco-arquivo').click());
+  $('#deco-arquivo').addEventListener('change', async (e) => {
+    const arquivo = e.target.files[0];
+    e.target.value = '';
+    if (!arquivo) return;
+    try {
+      const a = await enviarOriginal(arquivo, maxMb, status);
+      $('.vazio', bib)?.remove();
+      bib.prepend(itemBib(a));
+      await escolher(a.url);
+    } catch (err) {
+      avisar(err, 'O envio falhou');
+    }
+  });
+
+  $('#form-moldura').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!escolhido) { avisar(erroSimples('Escolhe um gif da biblioteca (ou envia um novo).')); return; }
+    try {
+      await api('POST', '/api/molduras', { ...escolhido, placa: $('#deco-placa').value, lugar: $('#deco-lugar').value });
+      location.reload();
+    } catch (err) {
+      avisar(err, 'Não deu pra pôr a moldura');
+    }
+  });
+
+  $$('[data-salvar-moldura]', pagina).forEach((b) => b.addEventListener('click', async () => {
+    const tr = b.closest('tr');
+    try {
+      await api('PUT', `/api/molduras/${b.dataset.salvarMoldura}`, { placa: $('.deco-placa', tr).value, lugar: $('.deco-lugar', tr).value });
+      location.reload();
+    } catch (err) {
+      avisar(err, 'Não deu pra salvar a moldura');
+    }
+  }));
+}

@@ -11,6 +11,7 @@ const md = require('./src/markdown');
 const { slugify, agoraLocal, RE_DATA_LOCAL, paraDate, tagsDe, minutosLeitura, ipDe, decodificar, limitador } = require('./src/util');
 const contador = require('./src/contador');
 const chat = require('./src/chat');
+const site = require('./src/site');
 const { servirPublico, mandarArquivo, dentro } = require('./src/estaticos');
 const publico = require('./src/views/publico');
 const admin = require('./src/views/admin');
@@ -265,6 +266,51 @@ rota('GET', '/colecoes/([a-z0-9-]+)', (req, res, [k]) => {
   const pag = publico.colecao(k);
   return pag ? html(req, res, pag) : nao(req, res);
 }, { contar: true });
+rota('GET', '/colecoes/([a-z0-9-]+)/(\\d+)', (req, res, [slug, id]) => {
+  const pag = publico.itemColecao(slug, Number(id));
+  return pag ? html(req, res, pag) : nao(req, res);
+}, { contar: true });
+
+// --- livro de visitas, enquete, links e novidades
+
+const podeAssinar = limitador(3, 10 * 60000);
+const podeVotar = limitador(20, 10 * 60000);
+
+rota('GET', '/livro-de-visitas', (req, res, _, url) => {
+  const pag = Math.max(1, parseInt(url.searchParams.get('pagina'), 10) || 1);
+  if (pag > 1 && (pag - 1) * publico.POR_PAGINA >= db.contarAprovados()) return nao(req, res);
+  const aviso = url.searchParams.has('enviado') ? 'Recado enviado! Ele aparece aqui assim que o webmaster aprovar.' : '';
+  html(req, res, publico.livroVisitas({ pag, aviso }));
+}, { contar: true });
+
+rota('POST', '/livro-de-visitas', async (req, res) => {
+  const f = await lerForm(req);
+  const valores = { nome: f.get('nome') || '', site: f.get('site') || '', mensagem: f.get('mensagem') || '' };
+  // campo escondido: gente não vê, robô preenche. Finge que deu certo.
+  if (f.get('email')) return redirecionar(res, '/livro-de-visitas?enviado', 303);
+  if (!podeAssinar(ipDe(req))) {
+    return html(req, res, publico.livroVisitas({ erro: 'Calma! Muitos recados seguidos. Tenta de novo daqui a uns minutos.', valores }), 429);
+  }
+  let recado;
+  try {
+    recado = site.validarRecado(valores);
+  } catch (e) {
+    if (e instanceof site.ErroSite) return html(req, res, publico.livroVisitas({ erro: e.message, valores }), e.status);
+    throw e;
+  }
+  db.inserirRecado(recado);
+  redirecionar(res, '/livro-de-visitas?enviado', 303);
+});
+
+rota('GET', '/enquete', (req, res, _, url) => html(req, res, publico.enquete(url.searchParams.get('voto'))), { contar: true });
+rota('POST', '/enquete/votar', async (req, res) => {
+  const f = await lerForm(req);
+  if (!podeVotar(ipDe(req))) return redirecionar(res, '/enquete?voto=repetido', 303);
+  redirecionar(res, `/enquete?voto=${site.votar(req, { enquete: f.get('enquete'), opcao: f.get('opcao') })}`, 303);
+});
+
+rota('GET', '/links', (req, res) => html(req, res, publico.links()), { contar: true });
+rota('GET', '/novidades', (req, res) => html(req, res, publico.novidades()), { contar: true });
 
 // --- bate-papo
 
@@ -327,7 +373,11 @@ function sitemap() {
     ['/colecoes', ''],
     // coleções visíveis com pelo menos um item (as vazias ficam de fora, têm noindex)
     ...db.colecoesComItens().map((c) => [`/colecoes/${c.slug}`, c.atualizado_em]),
+    ...db.itensPublicos().map((i) => [`/colecoes/${i.colecao_slug}/${i.id}`, i.atualizado_em]),
     ...posts.map((p) => [urlPost(p), p.atualizado_em]),
+    ['/livro-de-visitas', ''],
+    ...(db.links().length ? [['/links', '']] : []),
+    ...(db.novidades(1).length ? [['/novidades', `${db.novidades(1)[0].dia}T00:00:00.000Z`]] : []),
   ];
   return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
@@ -373,6 +423,17 @@ rota('GET', '/admin/colecoes/(\\d+)', (req, res, [id]) => {
   const anexos = db.anexos();
   return html(req, res, admin.colecaoItens(c, itens, anexos));
 }, { restrito: true });
+rota('GET', '/admin/recados', (req, res) => html(req, res, admin.recados(db.recadosAdmin())), { restrito: true });
+rota('GET', '/admin/site', (req, res) => html(req, res, admin.site({
+  status: db.lerAjuste('status', []),
+  todo: db.lerAjuste('todo', []),
+  musica: db.lerAjuste('musica', null),
+  enquetes: db.enquetes().map(site.enqueteComOpcoes),
+  novidades: db.novidades(),
+  links: db.links(),
+  anexos: db.anexos(),
+})), { restrito: true });
+rota('GET', '/admin/decoracao', (req, res) => html(req, res, admin.decoracao(db.molduras())), { restrito: true });
 rota('GET', '/admin/novo', (req, res) => html(req, res, admin.editor(null)), { restrito: true });
 rota('GET', '/admin/editar/(\\d+)', (req, res, [id]) => {
   const p = db.postPorId(Number(id));
@@ -405,6 +466,8 @@ rota('DELETE', '/api/anexos/(\\d+)', (req, res, [id]) => {
   if (!a) throw new ErroHttp(404, 'Arquivo não encontrado.');
   const emUso = db.todosPosts().map((p) => db.postPorId(p.id)).filter((p) => p.conteudo.includes(a.arquivo));
   if (emUso.length) throw new ErroHttp(409, `Esse arquivo ainda é usado em: ${emUso.map((p) => p.titulo).join(', ')}.`);
+  const usosDoSite = site.usosDoAnexo(a.arquivo);
+  if (usosDoSite.length) throw new ErroHttp(409, `Esse arquivo ainda é usado em: ${usosDoSite.join(', ')}.`);
   const emUsoItens = db.itensComFoto(a.arquivo);
   if (emUsoItens.length) {
     const nomesItens = emUsoItens.slice(0, 3).map((i) => `"${i.titulo}" (${i.colecao_nome})`).join(', ');
@@ -495,7 +558,7 @@ rota('POST', '/api/colecoes/(\\d+)/itens', async (req, res, [id]) => {
   const ano = String(d.ano || '').trim().slice(0, 20);
   const regiao = String(d.regiao || '').trim().slice(0, 50);
   const estado = String(d.estado || '').trim().slice(0, 50);
-  const observacoes = String(d.observacoes || '').trim().slice(0, 500);
+  const observacoes = String(d.observacoes || '').trim().slice(0, 4000);
   const foto = String(d.foto || '').trim().slice(0, 500);
   const ordem = db.proximaOrdemItem(colecaoId);
   const itemId = db.inserirItem({ colecao_id: colecaoId, titulo, ano, regiao, estado, observacoes, foto, ordem });
@@ -513,7 +576,7 @@ rota('PUT', '/api/itens/(\\d+)', async (req, res, [id]) => {
   const ano = String(d.ano !== undefined ? d.ano : item.ano).trim().slice(0, 20);
   const regiao = String(d.regiao !== undefined ? d.regiao : item.regiao).trim().slice(0, 50);
   const estado = String(d.estado !== undefined ? d.estado : item.estado).trim().slice(0, 50);
-  const observacoes = String(d.observacoes !== undefined ? d.observacoes : item.observacoes).trim().slice(0, 500);
+  const observacoes = String(d.observacoes !== undefined ? d.observacoes : item.observacoes).trim().slice(0, 4000);
   const foto = String(d.foto !== undefined ? d.foto : item.foto).trim().slice(0, 500);
   db.atualizarItem(numId, { titulo, ano, regiao, estado, observacoes, foto });
   const atualizado = db.itemPorId(numId);
@@ -548,6 +611,90 @@ rota('POST', '/api/colecoes/(\\d+)/reordenar-itens', async (req, res, [id]) => {
   if (!['titulo', 'ano'].includes(criterio)) throw new ErroHttp(400, 'Critério inválido.');
   db.ordenarColecaoItens(colecaoId, criterio, direcao);
   json(req, res, { ok: true, itens: db.itensDaColecao(colecaoId) });
+}, { restrito: true });
+
+// --- API do site: recados, status, to-do, rádio, enquetes, novidades, links e molduras
+
+const idOu404 = (n, msg) => { if (!n) throw new ErroHttp(404, msg); };
+const direcaoDe = (d) => {
+  if (d.direcao !== 'subir' && d.direcao !== 'descer') throw new ErroHttp(400, 'Direção inválida.');
+  return d.direcao;
+};
+
+rota('PUT', '/api/recados/(\\d+)', (req, res, [id]) => {
+  idOu404(db.aprovarRecado(Number(id)), 'Esse recado não existe mais.');
+  json(req, res, { ok: true });
+}, { restrito: true });
+rota('DELETE', '/api/recados/(\\d+)', (req, res, [id]) => {
+  idOu404(db.excluirRecado(Number(id)), 'Esse recado não existe mais.');
+  json(req, res, { ok: true });
+}, { restrito: true });
+
+rota('PUT', '/api/site/status', async (req, res) => {
+  const status = site.validarStatus(await lerJson(req));
+  db.gravarAjuste('status', status);
+  json(req, res, { ok: true, status });
+}, { restrito: true });
+rota('PUT', '/api/site/todo', async (req, res) => {
+  const todo = site.validarTodo(await lerJson(req));
+  db.gravarAjuste('todo', todo);
+  json(req, res, { ok: true, todo });
+}, { restrito: true });
+rota('PUT', '/api/site/musica', async (req, res) => {
+  const musica = site.validarMusica(await lerJson(req));
+  db.gravarAjuste('musica', musica);
+  json(req, res, { ok: true, musica });
+}, { restrito: true });
+
+rota('POST', '/api/enquetes', async (req, res) => {
+  const e = site.validarEnquete(await lerJson(req));
+  json(req, res, { ok: true, id: db.criarEnquete(e.pergunta, e.opcoes) }, 201);
+}, { restrito: true });
+rota('PUT', '/api/enquetes/(\\d+)', async (req, res, [id]) => {
+  const d = await lerJson(req);
+  idOu404(db.ativarEnquete(Number(id), !!d.ativa), 'Essa enquete não existe mais.');
+  json(req, res, { ok: true });
+}, { restrito: true });
+rota('DELETE', '/api/enquetes/(\\d+)', (req, res, [id]) => {
+  idOu404(db.excluirEnquete(Number(id)), 'Essa enquete não existe mais.');
+  json(req, res, { ok: true });
+}, { restrito: true });
+
+rota('POST', '/api/novidades', async (req, res) => {
+  json(req, res, { ok: true, id: db.inserirNovidade(site.validarNovidade(await lerJson(req))) }, 201);
+}, { restrito: true });
+rota('DELETE', '/api/novidades/(\\d+)', (req, res, [id]) => {
+  idOu404(db.excluirNovidade(Number(id)), 'Essa novidade não existe mais.');
+  json(req, res, { ok: true });
+}, { restrito: true });
+
+rota('POST', '/api/links', async (req, res) => {
+  json(req, res, { ok: true, id: db.inserirLink(site.validarLink(await lerJson(req))) }, 201);
+}, { restrito: true });
+rota('POST', '/api/links/(\\d+)/ordem', async (req, res, [id]) => {
+  if (!db.moverLink(Number(id), direcaoDe(await lerJson(req)))) throw new ErroHttp(400, 'Não é possível mover nessa direção.');
+  json(req, res, { ok: true });
+}, { restrito: true });
+rota('DELETE', '/api/links/(\\d+)', (req, res, [id]) => {
+  idOu404(db.excluirLink(Number(id)), 'Esse link não existe mais.');
+  json(req, res, { ok: true });
+}, { restrito: true });
+
+rota('POST', '/api/molduras', async (req, res) => {
+  json(req, res, { ok: true, id: db.inserirMoldura(site.validarMoldura(await lerJson(req))) }, 201);
+}, { restrito: true });
+rota('PUT', '/api/molduras/(\\d+)', async (req, res, [id]) => {
+  idOu404(db.molduraPorId(Number(id)), 'Essa moldura não existe mais.');
+  db.atualizarMoldura(Number(id), site.validarMoldura(await lerJson(req), { novo: false }));
+  json(req, res, { ok: true });
+}, { restrito: true });
+rota('POST', '/api/molduras/(\\d+)/ordem', async (req, res, [id]) => {
+  if (!db.moverMoldura(Number(id), direcaoDe(await lerJson(req)))) throw new ErroHttp(400, 'Não é possível mover nessa direção.');
+  json(req, res, { ok: true });
+}, { restrito: true });
+rota('DELETE', '/api/molduras/(\\d+)', (req, res, [id]) => {
+  idOu404(db.excluirMoldura(Number(id)), 'Essa moldura não existe mais.');
+  json(req, res, { ok: true });
 }, { restrito: true });
 
 // --- CSV de itens (exportar / importar)
@@ -637,7 +784,7 @@ function importarCsv(colecaoId, texto, confirmar) {
     vistos.add(chave);
     paraInserir.push({
       titulo, ano: pega('ano', 20), regiao: pega('regiao', 50),
-      estado: pega('estado', 50), observacoes: pega('observacoes', 500),
+      estado: pega('estado', 50), observacoes: pega('observacoes', 4000),
     });
   }
 
@@ -722,7 +869,7 @@ const servidor = http.createServer(async (req, res) => {
     if (metodo === 'GET' && servirPublico(req, res, url.pathname)) return;
     nao(req, res);
   } catch (e) {
-    const status = e instanceof ErroHttp || e instanceof chat.ErroChat ? e.status : 500;
+    const status = e instanceof ErroHttp || e instanceof chat.ErroChat || e instanceof site.ErroSite ? e.status : 500;
     // erro inesperado ganha um código curto pra achar no log (docker compose logs | grep código)
     const codigo = status === 500 ? crypto.randomBytes(3).toString('hex') : undefined;
     if (status === 500) console.error(`[erro ${codigo}]`, new Date().toISOString(), req.method, req.url, e);

@@ -11,7 +11,7 @@ body.adm { padding: 0 }
   font: 900 12px/1.3 "Arial Black", Impact, sans-serif;
   text-transform: uppercase;
   color: #fff;
-  cursor: pointer;
+  cursor: url("/img/cursor.png") 8 1, pointer;
   background: linear-gradient(#ff4d4d, #a00);
   border: 2px outset #f66;
   text-shadow: 1px 1px 0 #000;
@@ -26,7 +26,7 @@ body.adm { padding: 0 }
   font-size: 11px;
   color: #f66;
   text-decoration: underline;
-  cursor: pointer;
+  cursor: url("/img/cursor.png") 8 1, pointer;
   background: none;
   border: 0;
 }
@@ -70,7 +70,7 @@ body.adm { padding: 0 }
   font: bold 11px Verdana, sans-serif;
   color: #fff;
   text-decoration: none;
-  cursor: pointer;
+  cursor: url("/img/cursor.png") 8 1, pointer;
   background: rgba(0,0,0,.55);
   border: 1px solid #000;
 }
@@ -211,7 +211,7 @@ body.adm { padding: 0 }
   padding: 3px 7px;
   font-size: 12px;
   color: #eee;
-  cursor: pointer;
+  cursor: url("/img/cursor.png") 8 1, pointer;
   background: linear-gradient(#555, #2a2a2a);
   border: 1px solid;
   border-color: #777 #111 #111 #777;
@@ -325,7 +325,7 @@ input[type="datetime-local"] { color-scheme: dark }
 }
 .biblioteca .nome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #ddd }
 .biblioteca .acoes { display: flex; gap: 8px }
-.biblioteca .acoes button { padding: 0; font-size: 10px; color: #fc3; text-decoration: underline; cursor: pointer; background: none; border: 0 }
+.biblioteca .acoes button { padding: 0; font-size: 10px; color: #fc3; text-decoration: underline; cursor: url("/img/cursor.png") 8 1, pointer; background: none; border: 0 }
 .biblioteca .acoes button.link-perigo { color: #f66 }
 .biblioteca li.enviando .nome { color: #fc0 }
 .progresso { display: block; height: 4px; background: #333 }
@@ -368,7 +368,7 @@ input[type="datetime-local"] { color-scheme: dark }
   background: linear-gradient(#555, #2a2a2a);
   border: 1px solid;
   border-color: #777 #111 #111 #777;
-  cursor: pointer;
+  cursor: url("/img/cursor.png") 8 1, pointer;
   margin: 0 1px;
 }
 .btn-ordem:hover:not(:disabled) { background: #fc0; color: #000 }
@@ -380,7 +380,7 @@ input[type="datetime-local"] { color-scheme: dark }
   font-size: 11px;
   color: #fc3;
   text-decoration: underline;
-  cursor: pointer;
+  cursor: url("/img/cursor.png") 8 1, pointer;
   background: none;
   border: 0;
   margin-right: 8px;
@@ -433,6 +433,39 @@ input[type="datetime-local"] { color-scheme: dark }
 .modal-colecao .aviso-slug { margin: 8px 0 12px; color: #555; font-size: 11px }
 .modal-colecao .aviso-slug code { color: #000; font-weight: bold }
 .modal-botoes-form { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px }
+
+/* ---------- recados, site e decoração ---------- */
+.pendentes { display: inline-block; min-width: 16px; margin-left: 3px; padding: 0 4px; font-size: 10px; color: #000; background: #fc0; border-radius: 8px; text-align: center }
+.adm-duas { display: grid; grid-template-columns: 1fr 1fr; gap: 16px }
+.adm-duas .painel { margin: 0 0 16px }
+.pagina-site .painel, .pagina-deco .painel { margin-bottom: 16px }
+.recado-texto { margin-top: 4px; white-space: pre-wrap; overflow-wrap: anywhere; color: #ccc }
+.adm-recados td:first-child { width: 80px }
+.form-colecao textarea {
+  display: block;
+  width: 100%;
+  padding: 5px 6px;
+  font: 12px/1.4 "Courier New", monospace;
+  color: #eee;
+  background: #000;
+  border: 2px inset #444;
+  resize: vertical;
+}
+.form-colecao code { color: #3f3 }
+.form-linha { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; max-width: none }
+.form-linha input[type="date"] { width: auto; flex: none }
+.form-linha #novidade-texto { flex: 1; min-width: 200px; width: auto }
+.form-colecao .link-acao { margin-top: 4px }
+.envio-status { margin-left: 8px; font-size: 11px; color: #3f3 }
+.b88-vazio { display: inline-flex; width: 88px; height: 31px; align-items: center; justify-content: center; font-size: 9px; color: #666; border: 1px dashed #444 }
+.deco-escolha { display: flex; align-items: center; gap: 12px; margin-bottom: 10px }
+.deco-biblioteca { max-height: 220px; margin-bottom: 12px }
+.deco-biblioteca .foto-item { background-color: #111; border-color: #444 }
+.deco-biblioteca .foto-item.escolhido { border-color: #fc0; box-shadow: 0 0 0 2px #fc0 }
+.adm-deco .deco-previa { width: 90px; text-align: center; background: #000 }
+.adm-deco .deco-previa img { max-width: 80px; max-height: 70px }
+.adm-deco input.deco-placa, .adm-deco select.deco-lugar { padding: 3px 5px; color: #eee; background: #000; border: 2px inset #444 }
+.adm-deco input.deco-placa { width: 150px; margin-right: 6px }
 
 /* ---------- itens de coleção ---------- */
 .voltar-itens { margin: 0 0 10px; font-size: 12px }
@@ -514,12 +547,19 @@ input[type="datetime-local"] { color-scheme: dark }
   aspect-ratio: 1;
   background: #ddd center / cover no-repeat;
   border: 2px solid #808080;
-  cursor: pointer;
+  cursor: url("/img/cursor.png") 8 1, pointer;
 }
 .foto-biblioteca .foto-item:hover { border-color: #a00; box-shadow: 0 0 0 2px #fc0 }
 .foto-biblioteca li.vazio { grid-column: 1 / -1; color: #444; font-size: 12px }
 
 @media (max-width: 900px) {
+  .adm-duas { grid-template-columns: 1fr }
+  .adm-deco input.deco-placa, .adm-deco select.deco-lugar { display: block; width: 100%; margin: 0 0 4px }
+  .adm-deco .deco-previa { width: 60px }
+  .adm-deco .deco-previa img { max-width: 52px }
+  .adm-deco small { overflow-wrap: anywhere }
+  .adm-deco td.acoes { white-space: normal }
+  .adm-deco td.acoes button { display: block; margin: 0 0 4px }
   .campo-triplo { grid-template-columns: 1fr }
   .adm-itens th:nth-child(4), .adm-itens td:nth-child(4) { display: none }
   .editor { grid-template-columns: 1fr }

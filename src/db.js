@@ -81,6 +81,63 @@ db.exec(`
     atualizado_em TEXT NOT NULL
   );
 
+  -- livro de visitas: recado só aparece depois de aprovado no painel
+  CREATE TABLE IF NOT EXISTS recados (
+    id        INTEGER PRIMARY KEY,
+    nome      TEXT NOT NULL,
+    site      TEXT NOT NULL DEFAULT '',
+    mensagem  TEXT NOT NULL,
+    aprovado  INTEGER NOT NULL DEFAULT 0,
+    criado_em TEXT NOT NULL
+  );
+
+  -- enquete: um voto por visitante (hash com segredo, sem cookie)
+  CREATE TABLE IF NOT EXISTS enquetes (
+    id        INTEGER PRIMARY KEY,
+    pergunta  TEXT NOT NULL,
+    ativa     INTEGER NOT NULL DEFAULT 1,
+    criado_em TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS enquete_opcoes (
+    id         INTEGER PRIMARY KEY,
+    enquete_id INTEGER NOT NULL REFERENCES enquetes (id) ON DELETE CASCADE,
+    texto      TEXT NOT NULL,
+    votos      INTEGER NOT NULL DEFAULT 0,
+    ordem      INTEGER NOT NULL DEFAULT 0
+  );
+  CREATE TABLE IF NOT EXISTS enquete_votos (
+    enquete_id INTEGER NOT NULL REFERENCES enquetes (id) ON DELETE CASCADE,
+    hash       TEXT NOT NULL,
+    PRIMARY KEY (enquete_id, hash)
+  ) WITHOUT ROWID;
+
+  -- gifs de decoração com moldura (lugar: esquerda, direita ou mural)
+  CREATE TABLE IF NOT EXISTS molduras (
+    id      INTEGER PRIMARY KEY,
+    src     TEXT NOT NULL,
+    largura INTEGER NOT NULL,
+    altura  INTEGER NOT NULL,
+    placa   TEXT NOT NULL DEFAULT '',
+    lugar   TEXT NOT NULL DEFAULT 'mural',
+    ordem   INTEGER NOT NULL DEFAULT 0
+  );
+
+  -- botões 88x31 de sites amigos
+  CREATE TABLE IF NOT EXISTS links (
+    id    INTEGER PRIMARY KEY,
+    nome  TEXT NOT NULL,
+    url   TEXT NOT NULL,
+    botao TEXT NOT NULL DEFAULT '',
+    ordem INTEGER NOT NULL DEFAULT 0
+  );
+
+  -- "o que há de novo" no site
+  CREATE TABLE IF NOT EXISTS novidades (
+    id    INTEGER PRIMARY KEY,
+    dia   TEXT NOT NULL,
+    texto TEXT NOT NULL
+  );
+
   -- contador de visitas: totais por dia, páginas mais vistas e quem já foi contado hoje
   CREATE TABLE IF NOT EXISTS visitas_dia (
     dia            TEXT PRIMARY KEY,
@@ -104,6 +161,39 @@ function ajuste(chave, gerar) {
   const valor = gerar();
   db.prepare('INSERT INTO ajustes (chave, valor) VALUES (?, ?)').run(chave, valor);
   return valor;
+}
+
+// ajustes em JSON (status, to-do, música...)
+function lerAjuste(chave, padrao) {
+  const r = db.prepare('SELECT valor FROM ajustes WHERE chave = ?').get(chave);
+  if (!r) return padrao;
+  try { return JSON.parse(r.valor); } catch { return padrao; }
+}
+function gravarAjuste(chave, valor) {
+  db.prepare('INSERT INTO ajustes (chave, valor) VALUES (?, ?) ON CONFLICT (chave) DO UPDATE SET valor = excluded.valor')
+    .run(chave, JSON.stringify(valor));
+}
+
+function transacao(fn) {
+  db.exec('BEGIN');
+  try {
+    const r = fn();
+    db.exec('COMMIT');
+    return r;
+  } catch (e) {
+    db.exec('ROLLBACK');
+    throw e;
+  }
+}
+
+// troca de lugar com o vizinho e renumera a ordem (1, 2, 3...)
+function mover(lista, id, direcao, gravarOrdem) {
+  const idx = lista.findIndex((x) => x.id === id);
+  const outro = direcao === 'subir' ? idx - 1 : idx + 1;
+  if (idx === -1 || outro < 0 || outro >= lista.length) return false;
+  [lista[idx], lista[outro]] = [lista[outro], lista[idx]];
+  lista.forEach((x, i) => gravarOrdem(i + 1, x.id));
+  return true;
 }
 
 const q = {
@@ -158,7 +248,75 @@ const q = {
   excluirItem: db.prepare(`DELETE FROM itens WHERE id = ?`),
   atualizarOrdemItem: db.prepare(`UPDATE itens SET ordem = ? WHERE id = ?`),
   itensComFoto: db.prepare(`SELECT i.id, i.titulo, c.nome AS colecao_nome FROM itens i JOIN colecoes c ON i.colecao_id = c.id WHERE i.foto LIKE ?`),
+  itensPublicos: db.prepare(`SELECT i.id, i.titulo, i.ano, i.estado, i.foto, i.atualizado_em, c.slug AS colecao_slug, c.nome AS colecao_nome
+                             FROM itens i JOIN colecoes c ON c.id = i.colecao_id WHERE c.visivel = 1 ORDER BY c.ordem, i.ordem, i.id`),
+
+  recadosAprovados: db.prepare(`SELECT * FROM recados WHERE aprovado = 1 ORDER BY id DESC LIMIT ? OFFSET ?`),
+  contarAprovados: db.prepare(`SELECT COUNT(*) AS n FROM recados WHERE aprovado = 1`),
+  contarPendentes: db.prepare(`SELECT COUNT(*) AS n FROM recados WHERE aprovado = 0`),
+  recadosAdmin: db.prepare(`SELECT * FROM recados ORDER BY aprovado, id DESC LIMIT 500`),
+  inserirRecado: db.prepare(`INSERT INTO recados (nome, site, mensagem, criado_em) VALUES (?, ?, ?, ?)`),
+  aprovarRecado: db.prepare(`UPDATE recados SET aprovado = 1 WHERE id = ?`),
+  excluirRecado: db.prepare(`DELETE FROM recados WHERE id = ?`),
+
+  enqueteAtiva: db.prepare(`SELECT * FROM enquetes WHERE ativa = 1 ORDER BY id DESC LIMIT 1`),
+  enquetePorId: db.prepare(`SELECT * FROM enquetes WHERE id = ?`),
+  enquetes: db.prepare(`SELECT * FROM enquetes ORDER BY id DESC`),
+  opcoesDe: db.prepare(`SELECT * FROM enquete_opcoes WHERE enquete_id = ? ORDER BY ordem, id`),
+  inserirEnquete: db.prepare(`INSERT INTO enquetes (pergunta, ativa, criado_em) VALUES (?, 1, ?)`),
+  inserirOpcao: db.prepare(`INSERT INTO enquete_opcoes (enquete_id, texto, ordem) VALUES (?, ?, ?)`),
+  desativarEnquetes: db.prepare(`UPDATE enquetes SET ativa = 0`),
+  ativarEnquete: db.prepare(`UPDATE enquetes SET ativa = ? WHERE id = ?`),
+  excluirEnquete: db.prepare(`DELETE FROM enquetes WHERE id = ?`),
+  guardarVoto: db.prepare(`INSERT OR IGNORE INTO enquete_votos (enquete_id, hash) VALUES (?, ?)`),
+  somarVoto: db.prepare(`UPDATE enquete_opcoes SET votos = votos + 1 WHERE id = ? AND enquete_id = ?`),
+  jaVotou: db.prepare(`SELECT 1 AS ok FROM enquete_votos WHERE enquete_id = ? AND hash = ?`),
+
+  molduras: db.prepare(`SELECT * FROM molduras ORDER BY lugar, ordem, id`),
+  moldurasDe: db.prepare(`SELECT * FROM molduras WHERE lugar = ? ORDER BY ordem, id`),
+  molduraPorId: db.prepare(`SELECT * FROM molduras WHERE id = ?`),
+  contarMolduras: db.prepare(`SELECT COUNT(*) AS n FROM molduras`),
+  proximaOrdemMoldura: db.prepare(`SELECT COALESCE(MAX(ordem), 0) + 1 AS proxima FROM molduras WHERE lugar = ?`),
+  inserirMoldura: db.prepare(`INSERT INTO molduras (src, largura, altura, placa, lugar, ordem) VALUES (?, ?, ?, ?, ?, ?)`),
+  atualizarMoldura: db.prepare(`UPDATE molduras SET placa = ?, lugar = ?, ordem = ? WHERE id = ?`),
+  ordemMoldura: db.prepare(`UPDATE molduras SET ordem = ? WHERE id = ?`),
+  excluirMoldura: db.prepare(`DELETE FROM molduras WHERE id = ?`),
+
+  links: db.prepare(`SELECT * FROM links ORDER BY ordem, id`),
+  linkPorId: db.prepare(`SELECT * FROM links WHERE id = ?`),
+  proximaOrdemLink: db.prepare(`SELECT COALESCE(MAX(ordem), 0) + 1 AS proxima FROM links`),
+  inserirLink: db.prepare(`INSERT INTO links (nome, url, botao, ordem) VALUES (?, ?, ?, ?)`),
+  ordemLink: db.prepare(`UPDATE links SET ordem = ? WHERE id = ?`),
+  excluirLink: db.prepare(`DELETE FROM links WHERE id = ?`),
+
+  novidades: db.prepare(`SELECT * FROM novidades ORDER BY dia DESC, id DESC LIMIT ?`),
+  inserirNovidade: db.prepare(`INSERT INTO novidades (dia, texto) VALUES (?, ?)`),
+  excluirNovidade: db.prepare(`DELETE FROM novidades WHERE id = ?`),
 };
+
+function votar(enqueteId, opcaoId, hash) {
+  return transacao(() => {
+    if (!q.guardarVoto.run(enqueteId, hash).changes) return 'repetido';
+    if (!q.somarVoto.run(opcaoId, enqueteId).changes) throw new Error('opção de outra enquete');
+    return 'ok';
+  });
+}
+
+function criarEnquete(pergunta, opcoes) {
+  return transacao(() => {
+    q.desativarEnquetes.run();
+    const id = Number(q.inserirEnquete.run(pergunta, new Date().toISOString()).lastInsertRowid);
+    opcoes.forEach((t, i) => q.inserirOpcao.run(id, t, i + 1));
+    return id;
+  });
+}
+
+function ativarEnquete(id, ativa) {
+  return transacao(() => {
+    if (ativa) q.desativarEnquetes.run();
+    return q.ativarEnquete.run(ativa ? 1 : 0, id).changes;
+  });
+}
 
 function reordenarColecao(id, direcao) {
   const todas = q.todasColecoesAdmin.all();
@@ -216,6 +374,55 @@ module.exports = {
   db,
   PASTA_UPLOADS,
   ajuste,
+  lerAjuste,
+  gravarAjuste,
+  transacao,
+
+  itensPublicos: () => q.itensPublicos.all(),
+
+  recadosAprovados: (limite, pular) => q.recadosAprovados.all(limite, pular),
+  contarAprovados: () => q.contarAprovados.get().n,
+  contarPendentes: () => q.contarPendentes.get().n,
+  recadosAdmin: () => q.recadosAdmin.all(),
+  inserirRecado: (r) => Number(q.inserirRecado.run(r.nome, r.site, r.mensagem, new Date().toISOString()).lastInsertRowid),
+  aprovarRecado: (id) => q.aprovarRecado.run(id).changes,
+  excluirRecado: (id) => q.excluirRecado.run(id).changes,
+
+  enqueteAtiva: () => q.enqueteAtiva.get(),
+  enquetePorId: (id) => q.enquetePorId.get(id),
+  enquetes: () => q.enquetes.all(),
+  opcoesDe: (id) => q.opcoesDe.all(id),
+  criarEnquete,
+  ativarEnquete,
+  excluirEnquete: (id) => q.excluirEnquete.run(id).changes,
+  votar,
+  jaVotou: (id, hash) => !!q.jaVotou.get(id, hash),
+
+  molduras: () => q.molduras.all(),
+  moldurasDe: (lugar) => q.moldurasDe.all(lugar),
+  molduraPorId: (id) => q.molduraPorId.get(id),
+  contarMolduras: () => q.contarMolduras.get().n,
+  inserirMoldura: (m) => Number(q.inserirMoldura.run(m.src, m.largura, m.altura, m.placa, m.lugar, q.proximaOrdemMoldura.get(m.lugar).proxima).lastInsertRowid),
+  atualizarMoldura: (id, m) => {
+    const atual = q.molduraPorId.get(id);
+    const ordem = atual.lugar === m.lugar ? atual.ordem : q.proximaOrdemMoldura.get(m.lugar).proxima;
+    return q.atualizarMoldura.run(m.placa, m.lugar, ordem, id).changes;
+  },
+  moverMoldura: (id, direcao) => {
+    const m = q.molduraPorId.get(id);
+    return !!m && mover(q.moldurasDe.all(m.lugar), id, direcao, (o, i) => q.ordemMoldura.run(o, i));
+  },
+  excluirMoldura: (id) => q.excluirMoldura.run(id).changes,
+
+  links: () => q.links.all(),
+  linkPorId: (id) => q.linkPorId.get(id),
+  inserirLink: (l) => Number(q.inserirLink.run(l.nome, l.url, l.botao, q.proximaOrdemLink.get().proxima).lastInsertRowid),
+  moverLink: (id, direcao) => mover(q.links.all(), id, direcao, (o, i) => q.ordemLink.run(o, i)),
+  excluirLink: (id) => q.excluirLink.run(id).changes,
+
+  novidades: (limite = 500) => q.novidades.all(limite),
+  inserirNovidade: (n) => Number(q.inserirNovidade.run(n.dia, n.texto).lastInsertRowid),
+  excluirNovidade: (id) => q.excluirNovidade.run(id).changes,
 
   publicados: () => q.publicados.all(agoraLocal()),
   postPorSlug: (slug) => q.porSlug.get(slug),

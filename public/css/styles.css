@@ -17,6 +17,11 @@ html {
   scrollbar-color: #c00 #111;
 }
 
+/* cursor do Wii Party U (mão azul, jogador 1); ponto de clique na ponta do dedo */
+html, a, button, label, select, summary, input[type="radio"], input[type="checkbox"], input[type="submit"] {
+  cursor: url("/img/cursor.png") 8 1, auto;
+}
+
 body {
   margin: 0;
   padding: 10px 8px 30px;
@@ -27,7 +32,8 @@ body {
 ::selection { background: #fc0; color: #000 }
 
 a { color: #fc3 }
-a:not(.plataformas a):hover { color: #fff; background: #c00; text-decoration: none }
+/* :where() não soma especificidade: a regra continua fraca como um a:hover comum */
+a:where(:not(.plataformas a)):hover { color: #fff; background: #c00; text-decoration: none }
 
 img { max-width: 100%; height: auto; display: block }
 
@@ -220,29 +226,28 @@ p { margin: 0 0 12px }
 .nav-lateral a:hover { background: #000; color: #fc0 }
 .nav-lateral a.aqui { background: rgba(0,0,0,.45); color: #fc0 }
 
-/* ---------- enquete só com CSS ---------- */
+/* ---------- enquete ---------- */
 .enquete { font-size: 11px; color: #fff }
+.enquete form { margin: 0 }
 .enquete p { font-weight: bold; margin-bottom: 6px }
-.enquete label { display: block; cursor: pointer; padding: 1px 0 }
+.enquete label { display: block; cursor: url("/img/cursor.png") 8 1, pointer; padding: 1px 0 }
 .enquete input[type=radio] { margin: 0 4px 0 0; vertical-align: -2px; accent-color: #fc0 }
-#votei { position: absolute; opacity: 0; pointer-events: none }
 .botao-votar {
-  display: block !important;
+  display: block;
+  width: 100%;
   margin-top: 6px;
-  padding: 3px !important;
+  padding: 3px;
   text-align: center;
   font: 900 11px "Arial Black", sans-serif;
   color: #fff;
+  cursor: url("/img/cursor.png") 8 1, pointer;
   background: linear-gradient(#ff4d4d, #a00);
   border: 2px outset #f66;
 }
 .botao-votar:active { border-style: inset }
-.resultado { display: none; margin-top: 6px }
-#votei:checked ~ .resultado { display: block }
-#votei:checked ~ .botao-votar { display: none !important }
+.ver-resultado { display: block; margin-top: 5px; text-align: center; font-size: 10px; color: #ffd0d0 }
 .barra { display: block; height: 8px; margin: 1px 0 4px; background: #000; border: 1px solid #000 }
 .barra i { display: block; height: 100%; background: repeating-linear-gradient(90deg, #fc0 0 4px, #f90 4px 6px) }
-.resultado small { display: block; color: #ffd0d0; font-size: 9px; margin-top: 4px }
 
 /* ---------- lateral direita ---------- */
 .status { list-style: none; margin: 0; padding: 0; font-size: 11px }
@@ -769,6 +774,76 @@ a.etiqueta:hover { color: #fff; background: #c00 }
 .caixa.email-mini a:hover { background: none }
 .email-mini img { margin: 2px auto 0 }
 .email-mini small { display: block; font-size: 10px; color: #aaa }
+.livro-mini { text-align: center }
+.livro-mini a { display: inline-block }
+.caixa.livro-mini a:hover { background: none }
+.livro-mini img { margin: 2px auto 0 }
+.livro-mini small { display: block; font-size: 10px; color: #ffd0d0 }
+.radio { text-align: center; font-size: 11px }
+.radio p { margin: 0 0 4px; font-weight: bold; color: #fc3 }
+.radio audio { display: block; width: 100%; height: 32px }
+.radio small { display: block; margin-top: 3px; font-size: 9px; color: #888 }
+
+/* ---------- avisos das páginas com formulário ---------- */
+.aviso-ok, .aviso-erro { padding: 6px 10px; font-weight: bold; border: 2px solid #000 }
+.aviso-ok { color: #000; background: #3f3 }
+.aviso-erro { color: #fff; background: #c00 }
+
+/* ---------- livro de visitas ---------- */
+.form-recado label { display: block; margin-bottom: 8px; font-weight: bold; color: #fc3 }
+.form-recado input, .form-recado textarea {
+  display: block;
+  width: 100%;
+  margin-top: 2px;
+  padding: 5px 6px;
+  font: 12px Verdana, sans-serif;
+  color: #eee;
+  background: #000;
+  border: 2px inset #444;
+}
+.form-recado textarea { resize: vertical }
+.form-recado .armadilha { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden }
+.recados { list-style: none; margin: 0; padding: 0 }
+.recado { padding: 8px 0; border-bottom: 1px dotted #444 }
+.recado:last-child { border-bottom: 0 }
+.recado-cab { font-size: 11px; color: #aaa }
+.recado-cab b { color: #fc3; font-size: 12px }
+.recado-cab span { float: right; font-size: 10px; color: #777 }
+.recado p { margin: 4px 0 0; overflow-wrap: anywhere }
+
+/* ---------- resultado da enquete ---------- */
+.resultado-enquete .opcao { display: grid; grid-template-columns: minmax(0, 1fr) 2fr auto; gap: 8px; align-items: center; margin-bottom: 6px }
+.resultado-enquete .barra { height: 14px; margin: 0 }
+.resultado-enquete b { font: bold 12px "Courier New", monospace; color: #3f3 }
+
+/* ---------- item do dia, novidades e página do item ---------- */
+.item-do-dia { display: flex; gap: 12px; align-items: center; text-decoration: none; color: #ddd }
+.painel a.item-do-dia:hover { background: #1f1f1f; color: #fff }
+.item-do-dia .item-foto { flex: none; width: 96px; height: 96px; background: #000 center / cover no-repeat; border: 2px solid #000; outline: 1px solid #444 }
+.item-do-dia .item-foto.sem-foto { display: flex; align-items: center; justify-content: center; font-size: 9px; color: #555; text-transform: uppercase }
+.item-do-dia strong { display: block; font: 900 16px "Trebuchet MS", Verdana, sans-serif; color: #fc3 }
+.item-do-dia small { display: block; color: #aaa }
+.item-do-dia em { display: block; margin-top: 6px; font-style: normal; font-size: 11px; color: #3f3 }
+.novidades { list-style: none; margin: 0; padding: 8px 12px }
+.novidades li { padding: 3px 0; border-bottom: 1px dotted #333 }
+.novidades b { margin-right: 6px; font: bold 11px "Courier New", monospace; color: #3f3 }
+.item-pagina { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; margin-bottom: 14px }
+.item-grande { flex: 0 1 260px; display: block; padding: 5px; background: #000; border: 7px ridge #d4a72c }
+.item-grande img { display: block; width: 100%; height: auto }
+#meio a.item-grande:hover { background: #000 }
+span.item-grande { display: flex; align-items: center; justify-content: center; height: 200px; font-size: 11px; color: #555; text-transform: uppercase }
+.item-pagina .ficha { flex: 1 1 200px; width: auto }
+.painel p.dentro { margin: 0 }
+.cat-item a { display: flex; flex-direction: column; flex: 1; text-decoration: none; color: inherit }
+#meio .cat-item a:hover { background: none; color: inherit }
+.cat-item:has(a:hover) { outline: 2px solid #fc0 }
+
+/* ---------- links (botões 88x31) ---------- */
+.botoes-amigos { display: flex; flex-wrap: wrap; gap: 8px; padding: 8px 0 }
+.botoes-amigos img { display: block; width: 88px; height: 31px; image-rendering: pixelated }
+#meio .botoes-amigos a:hover { background: none; outline: 2px solid #fc0 }
+#meio .botoes-amigos a.b-amigo:hover { background: linear-gradient(#555, #222); color: #fff }
+.b-amigo { width: 88px; height: 31px; background: linear-gradient(#444, #111); color: #fc3 }
 
 .sala {
   margin-bottom: 10px;
@@ -812,7 +887,7 @@ a.etiqueta:hover { color: #fff; background: #c00 }
 }
 .sala-campo input { display: block; width: 100%; max-width: 260px; margin-top: 2px }
 .sala-cores { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 }
-.sala-cores label { cursor: pointer }
+.sala-cores label { cursor: url("/img/cursor.png") 8 1, pointer }
 .sala-cores input { position: absolute; opacity: 0 }
 .sala-cores span { display: block; width: 26px; height: 26px; background: var(--cor); border: 2px solid #000; box-shadow: inset 2px 2px 0 rgba(255,255,255,.4) }
 .sala-cores input:checked + span { outline: 3px solid #000; outline-offset: 2px }
@@ -837,7 +912,7 @@ a.etiqueta:hover { color: #fff; background: #c00 }
 }
 .sala-msgs .m { padding: 1px 0 }
 .sala-msgs .hora { margin-right: 6px; color: #666 }
-.sala-msgs .nick { cursor: pointer }
+.sala-msgs .nick { cursor: url("/img/cursor.png") 8 1, pointer }
 .sala-msgs .m > b:not([style]) { color: #fff }
 .sala-msgs .sis { color: #888; font-style: italic }
 .sala-msgs .pra-mim { background: #1f1f00 }
@@ -847,7 +922,7 @@ a.etiqueta:hover { color: #fff; background: #c00 }
   padding: 0 3px;
   font: 9px Verdana, sans-serif;
   color: #f66;
-  cursor: pointer;
+  cursor: url("/img/cursor.png") 8 1, pointer;
   background: none;
   border: 1px solid #600;
 }
@@ -858,7 +933,7 @@ a.etiqueta:hover { color: #fff; background: #c00 }
   padding: 0;
   font: bold 11px Tahoma, Verdana, sans-serif;
   text-align: left;
-  cursor: pointer;
+  cursor: url("/img/cursor.png") 8 1, pointer;
   background: none;
   border: 0;
   text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
@@ -870,7 +945,7 @@ a.etiqueta:hover { color: #fff; background: #c00 }
 #texto { flex: 1; min-width: 160px; padding: 5px }
 .sala-falar .botao { margin: 0 }
 .sala-linha.pequena { justify-content: space-between; margin: 0 }
-.link-sair { padding: 0; font: 11px Tahoma, Verdana, sans-serif; color: #00c; text-decoration: underline; cursor: pointer; background: none; border: 0 }
+.link-sair { padding: 0; font: 11px Tahoma, Verdana, sans-serif; color: #00c; text-decoration: underline; cursor: url("/img/cursor.png") 8 1, pointer; background: none; border: 0 }
 .sala-regras { font-size: 11px; color: #999 }
 
 @media (max-width: 560px) {
@@ -925,7 +1000,7 @@ dialog.modal-erro::backdrop { background: rgba(0, 0, 40, .55) }
   text-align: center;
   text-decoration: none;
   color: #000;
-  cursor: pointer;
+  cursor: url("/img/cursor.png") 8 1, pointer;
   background: #c0c0c0;
   border: 1px solid;
   border-color: #fff #000 #000 #fff;
@@ -950,7 +1025,7 @@ dialog.modal-erro::backdrop { background: rgba(0, 0, 40, .55) }
 .modal-lista li + li { margin-top: 6px }
 .modal-codigo code { padding: 0 4px; background: #fff; border: 1px solid #808080 }
 .modal-detalhes { margin-top: 8px }
-.modal-detalhes summary { cursor: pointer; color: #00c }
+.modal-detalhes summary { cursor: url("/img/cursor.png") 8 1, pointer; color: #00c }
 .modal-detalhes pre {
   max-height: 160px;
   margin: 6px 0 0;
@@ -970,7 +1045,7 @@ dialog.modal-erro::backdrop { background: rgba(0, 0, 40, .55) }
   text-align: center;
   text-decoration: none;
   color: #000;
-  cursor: pointer;
+  cursor: url("/img/cursor.png") 8 1, pointer;
   background: #c0c0c0;
   border: 2px solid;
   border-color: #fff #000 #000 #fff;

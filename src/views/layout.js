@@ -26,6 +26,8 @@ function navLateral(aqui, ultimo) {
       ['opinioes', '/opinioes', 'Opiniões'],
       ['projetos', '/projetos', 'Projetos'],
       ['chat', '/chat', 'Bate-papo'],
+      ['recados', '/livro-de-visitas', 'Livro de visitas'],
+      ['links', '/links', 'Links'],
     ]],
     ['No blog', [
       ...(ultimo ? [[`post-${ultimo.id}`, urlPost(ultimo), 'Último post']] : []),
@@ -44,59 +46,68 @@ ${itens.map(([k, href, txt]) => `                        <li><a${k === aqui ? ' 
                 </section>`).join('');
 }
 
-// gifs de decoração (arquivos em public/img/deco): pra pôr mais um, é só somar uma linha
-const QUADRO_ESQ = { gif: 'link.gif', w: 171, h: 220, placa: 'Hyrule' };
-const QUADRO_DIR = { gif: 'pikachu-danca.gif', w: 137, h: 181, placa: 'Pikachu' };
-const MURAL = [
-  { gif: 'triforce.gif', w: 128, h: 96, placa: 'Triforce' },
-  { gif: 'mini-link.gif', w: 50, h: 54, placa: 'Link' },
-  { gif: 'pikachu-pokebola.gif', w: 80, h: 80, placa: 'Pokébola' },
-  { gif: 'dragon-ball.gif', w: 63, h: 96, placa: 'Dragon Ball' },
-  { gif: 'sonic.gif', w: 256, h: 150, placa: 'Sonic' },
-  { gif: 'pikachu-bola.gif', w: 66, h: 70, placa: 'Pika!' },
-  { gif: 'counter-strike.gif', w: 120, h: 155, placa: 'CT' },
-  { gif: 'counter-strike-2.gif', w: 80, h: 80, placa: 'Counter-Strike' },
-  { gif: 'pikachu-corre.gif', w: 80, h: 57, placa: 'Corre!' },
-];
+// gifs com moldura (cadastrados no painel, em Decoração)
+const arquivoLocal = (src) => (src.startsWith('/img/') ? versao(src) : src);
 
-const moldura = (d) => `<figure class="moldura"><img src="${versao(`/img/deco/${d.gif}`)}" width="${d.w}" height="${d.h}" alt="" loading="lazy"><figcaption>${esc(d.placa)}</figcaption></figure>`;
+const moldura = (m) => `<figure class="moldura"><img src="${esc(arquivoLocal(m.src))}" width="${m.largura}" height="${m.altura}" alt="" loading="lazy">${m.placa ? `<figcaption>${esc(m.placa)}</figcaption>` : ''}</figure>`;
 
-const muralHtml = () => `
+const molduras = (lugar) => db.moldurasDe(lugar).map((m) => `\n                ${moldura(m)}`).join('');
+
+function muralHtml() {
+  const lista = db.moldurasDe('mural');
+  if (!lista.length) return '';
+  return `
         <section id="mural">
             <h2>Galeria de gifs</h2>
             <div class="mural-quadros">
-                ${MURAL.map(moldura).join('\n                ')}
+                ${lista.map(moldura).join('\n                ')}
             </div>
         </section>`;
+}
 
-const ENQUETE = `
+function enqueteHtml() {
+  const e = db.enqueteAtiva();
+  if (!e) return '';
+  const opcoes = db.opcoesDe(e.id);
+  return `
                 <section class="caixa enquete">
                     <h3>Enquete do HB</h3>
-                    <p>Qual coleção eu devia catalogar primeiro?</p>
-                    <label><input type="radio" name="enquete"> PS2</label>
-                    <label><input type="radio" name="enquete"> Nintendo 64</label>
-                    <label><input type="radio" name="enquete"> Livros</label>
-                    <label><input type="radio" name="enquete"> Filmes</label>
-                    <input type="checkbox" id="votei">
-                    <label class="botao-votar" for="votei">VOTAR!</label>
-                    <div class="resultado">
-                        PS2 <span class="barra"><i style="width:61%"></i></span>
-                        Nintendo 64 <span class="barra"><i style="width:22%"></i></span>
-                        Livros <span class="barra"><i style="width:9%"></i></span>
-                        Filmes <span class="barra"><i style="width:8%"></i></span>
-                        <small>*resultados 100% inventados, que nem em 2003. Obrigado pelo voto!</small>
-                    </div>
+                    <form method="post" action="/enquete/votar">
+                        <input type="hidden" name="enquete" value="${e.id}">
+                        <p>${esc(e.pergunta)}</p>
+${opcoes.map((o) => `                        <label><input type="radio" name="opcao" value="${o.id}" required> ${esc(o.texto)}</label>`).join('\n')}
+                        <button class="botao-votar">VOTAR!</button>
+                    </form>
+                    <a class="ver-resultado" href="/enquete">ver o resultado</a>
                 </section>`;
+}
+
+const LIVRO_VISITAS = `
+                <section class="caixa livro-mini">
+                    <h3>Livro de visitas</h3>
+                    <a href="/livro-de-visitas"><img src="/img/livro-visitas.gif" width="91" height="110" alt="Assine o livro de visitas"></a>
+                    <small>assine e deixe um recado!</small>
+                </section>`;
+
+function radioHtml() {
+  const m = db.lerAjuste('musica', null);
+  if (!m?.src) return '';
+  return `
+
+                <section class="caixa radio">
+                    <h3>Rádio do HB</h3>
+                    <p>${esc(m.titulo)}</p>
+                    <audio controls preload="none" loop src="${esc(m.src)}"></audio>
+                    <small>só toca se você apertar o play</small>
+                </section>`;
+}
 
 const direitaHtml = () => `
             <aside id="dir">
                 <section class="caixa">
                     <h3>Status</h3>
                     <ul class="status">
-                        <li><b>Jogando</b>PS2 com RetroAchievements</li>
-                        <li><b>Traduzindo</b>xerabora (PT-BR e ES)</li>
-                        <li><b>Lendo</b>issues no GitHub</li>
-                        <li><b>Ouvindo</b>o cooler do servidor</li>
+${db.lerAjuste('status', []).map((l) => `                        <li><b>${esc(l.rotulo)}</b>${esc(l.texto)}</li>`).join('\n')}
                     </ul>
                 </section>
 
@@ -110,21 +121,13 @@ const direitaHtml = () => `
                     <h3>Fale comigo</h3>
                     <a href="mailto:${cfg.EMAIL}"><img src="/img/email.gif" width="97" height="59" alt="Mande um e-mail"></a>
                     <small>mande um e-mail!</small>
-                </section>
+                </section>${radioHtml()}
 
                 <section class="caixa">
                     <div class="bilhete">
                         <h4>to-do</h4>
                         <ul>
-                            <li><s>fazer o site</s></li>
-                            <li><s>primeiro post</s></li>
-                            <li><s>contribuir com open source</s></li>
-                            <li><s>painel pra escrever post</s></li>
-                            <li><s>contador de visitas</s></li>
-                            <li><s>sala de bate-papo</s></li>
-                            <li>catalogar as coleções</li>
-                            <li>escrever opiniões</li>
-                            <li>arrumar um livro de visitas</li>
+${db.lerAjuste('todo', []).map((i) => `                            <li>${i.feito ? `<s>${esc(i.texto)}</s>` : esc(i.texto)}</li>`).join('\n')}
                         </ul>
                     </div>
                 </section>
@@ -136,7 +139,7 @@ const direitaHtml = () => `
                     ${contador.hojeNumeros().visitantes} hoje &middot; contador de verdade
                 </section>
 
-                ${moldura(QUADRO_DIR)}
+${molduras('direita')}
 
                 <section class="caixa">
                     <h3>Botões</h3>
@@ -227,8 +230,7 @@ function pagina({ titulo, descricao = '', aba = '', aqui = '', miolo, direita = 
 
         <div id="colunas">
 
-            <aside id="esq">${navLateral(aqui, ultimo)}
-                ${moldura(QUADRO_ESQ)}${ENQUETE}
+            <aside id="esq">${navLateral(aqui, ultimo)}${molduras('esquerda')}${enqueteHtml()}${LIVRO_VISITAS}
             </aside>
 
             <main id="meio">
@@ -314,4 +316,4 @@ function emObras(chamada, texto) {
                 </div>`;
 }
 
-module.exports = { pagina, ranking, emObras, modalErro, urlPost, SECOES, FAVICON };
+module.exports = { pagina, ranking, emObras, modalErro, urlPost, SECOES, FAVICON, arquivoLocal };

@@ -1,9 +1,15 @@
 const cfg = require('../config');
 const { esc, textoPuro } = require('../markdown');
 const { dataBR, tagsDe, slugify, paraDate } = require('../util');
-const { pagina, ranking, emObras, modalErro, urlPost, SECOES } = require('./layout');
+const { pagina, ranking, emObras, modalErro, urlPost, SECOES, arquivoLocal } = require('./layout');
 const db = require('../db');
+const site = require('../site');
 const { CORES, quantos } = require('../chat');
+
+const fmtDia = new Intl.DateTimeFormat('pt-BR', { timeZone: cfg.FUSO, day: '2-digit', month: '2-digit', year: 'numeric' });
+const diaDe = (iso) => fmtDia.format(new Date(iso));
+const comQuebras = (s) => esc(s).replace(/\n/g, '<br>');
+const RE_IMAGEM = /\.(webp|png|jpe?g|gif)$/i;
 
 const AVATAR = '<b>H</b><i>B</i>'; // monograma, igual ao logo
 
@@ -15,6 +21,42 @@ function tituloBanner(t) {
   const p = t.split(' ');
   if (p.length < 4) return esc(t);
   return `${esc(p.slice(0, -2).join(' '))} <em>${esc(p.slice(-2).join(' '))}</em>`;
+}
+
+const fotoDoItem = (foto, classe = 'item-foto') => (foto && RE_IMAGEM.test(foto)
+  ? `<span class="${classe}" style="background-image:url('${esc(foto)}')"></span>`
+  : `<span class="${classe} sem-foto">sem foto</span>`);
+
+function caixaItemDoDia() {
+  const i = site.itemDoDia();
+  if (!i) return '';
+  const meta = [i.colecao_nome, i.ano, i.estado].filter(Boolean).map(esc).join(' &middot; ');
+  return `
+                <section class="painel">
+                    <h2>Item do dia <small>da minha estante</small></h2>
+                    <a class="dentro item-do-dia" href="/colecoes/${i.colecao_slug}/${i.id}">
+                        ${fotoDoItem(i.foto)}
+                        <span><strong>${esc(i.titulo)}</strong><small>${meta}</small><em>ver o item &#8250;</em></span>
+                    </a>
+                </section>
+`;
+}
+
+function listaNovidades(lista) {
+  return `<ul class="dentro novidades">
+${lista.map((n) => `                        <li><b>${n.dia.slice(8, 10)}/${n.dia.slice(5, 7)}/${n.dia.slice(0, 4)}</b> ${esc(n.texto)}</li>`).join('\n')}
+                    </ul>`;
+}
+
+function caixaNovidades() {
+  const lista = db.novidades(5);
+  if (!lista.length) return '';
+  return `
+                <section class="painel">
+                    <h2>O que há de novo <small><a href="/novidades">ver tudo &raquo;</a></small></h2>
+                    ${listaNovidades(lista)}
+                </section>
+`;
 }
 
 function inicio(posts) {
@@ -62,6 +104,7 @@ ${banner}
                     <h2>Posts mais recentes <small><a href="/blog">ver todos &raquo;</a></small></h2>
 ${ranking(posts.slice(0, 5), { minimo: 3 })}
                 </section>
+${caixaItemDoDia()}${caixaNovidades()}
 
                 <section class="painel" id="sobre">
                     <h2>Sobre mim</h2>
@@ -240,19 +283,14 @@ function grade(colecoes) {
     `                    <a class="${esc(c.estilo)}" href="/colecoes/${c.slug}">${esc(c.nome)}</a>`).join('\n');
 }
 
-const RE_IMG = /\.(webp|png|jpe?g|gif)$/i;
-
-function gradeItens(itens) {
+function gradeItens(slug, itens) {
   const cartoes = itens.map((i) => {
-    const foto = i.foto && RE_IMG.test(i.foto)
-      ? `<span class="item-foto" style="background-image:url('${esc(i.foto)}')"></span>`
-      : '<span class="item-foto sem-foto">sem foto</span>';
     const meta = [i.ano, i.estado].filter(Boolean).map(esc).join(' &middot; ');
-    return `                        <li class="cat-item">
-                            ${foto}
+    return `                        <li class="cat-item"><a href="/colecoes/${slug}/${i.id}">
+                            ${fotoDoItem(i.foto)}
                             <strong>${esc(i.titulo)}</strong>
                             ${meta ? `<small>${meta}</small>` : ''}
-                        </li>`;
+                        </a></li>`;
   }).join('\n');
   return `                <ul class="colecao-itens">
 ${cartoes}
@@ -285,15 +323,17 @@ ${grade(outros)}
   });
 }
 
+const NOMES_COLECAO = { consoles: 'Consoles', livros: 'Livros', filmes: 'Filmes', 'jogos-pc': 'Jogos de PC' };
+const nomeColecao = (c) => NOMES_COLECAO[c.slug] || c.subtitulo || c.nome;
+
 function colecao(chave) {
   const item = db.colecaoPorSlug(chave);
   if (!item || !item.visivel) return null;
-  const nomes = { consoles: 'Consoles', livros: 'Livros', filmes: 'Filmes', 'jogos-pc': 'Jogos de PC' };
-  const nome = nomes[chave] || item.subtitulo || item.nome;
+  const nome = nomeColecao(item);
   const itens = db.itensDaColecao(item.id);
   const temItens = itens.length > 0;
   const corpo = temItens
-    ? gradeItens(itens)
+    ? gradeItens(item.slug, itens)
     : emObras('Em construção', 'Tô catalogando essa coleção. Volte mais tarde que vai ter lista, foto e história de cada item.');
   return pagina({
     titulo: `Coleção: ${nome} :: HB Hub`,
@@ -309,6 +349,162 @@ function colecao(chave) {
 ${corpo}
 
                 <p><a href="/colecoes">&laquo; voltar pras coleções</a></p>`,
+  });
+}
+
+function itemColecao(slug, id) {
+  const c = db.colecaoPorSlug(slug);
+  const i = db.itemPorId(id);
+  if (!c || !c.visivel || !i || i.colecao_id !== c.id) return null;
+  const itens = db.itensDaColecao(c.id);
+  const pos = itens.findIndex((x) => x.id === i.id);
+  const [ant, prox] = [itens[pos - 1], itens[pos + 1]];
+  const nome = nomeColecao(c);
+  const temFoto = i.foto && RE_IMAGEM.test(i.foto);
+  const ficha = [['Coleção', `<a href="/colecoes/${c.slug}">${esc(nome)}</a>`], ['Ano', esc(i.ano)], ['Região', esc(i.regiao)], ['Estado', esc(i.estado)]]
+    .filter(([, v]) => v).map(([k, v]) => `<tr><th>${k}</th><td>${v}</td></tr>`).join('');
+  const descricao = [nome, i.ano, i.estado].filter(Boolean).join(', ');
+  return pagina({
+    titulo: `${i.titulo} :: Coleção ${nome} :: HB Hub`,
+    descricao: `${i.titulo} (${descricao}) na coleção do HB.`,
+    aba: 'colecoes',
+    aqui: c.slug,
+    seo: { caminho: `/colecoes/${c.slug}/${i.id}`, imagem: temFoto ? cfg.SITE_URL + i.foto : undefined },
+    miolo: `                <div class="migalhas"><a href="/">Início</a> &raquo; <a href="/colecoes">Coleções</a> &raquo; <a href="/colecoes/${c.slug}">${esc(nome)}</a> &raquo; ${esc(i.titulo)}</div>
+                <h1 class="bem-vindo">${esc(i.titulo)}</h1>
+
+                <div class="item-pagina">
+                    ${temFoto ? `<a class="item-grande" href="${esc(i.foto)}" target="_blank"><img src="${esc(i.foto)}" alt="${esc(i.titulo)}"></a>` : fotoDoItem('', 'item-grande')}
+                    <table class="ficha">${ficha}</table>
+                </div>
+${i.observacoes ? `
+                <section class="painel">
+                    <h2>A história</h2>
+                    <p class="dentro">${comQuebras(i.observacoes)}</p>
+                </section>` : ''}
+
+                <div class="fim-post">
+                    ${ant ? `<a href="/colecoes/${c.slug}/${ant.id}">&laquo; ${esc(ant.titulo)}</a>` : `<a href="/colecoes/${c.slug}">&laquo; voltar pra coleção</a>`}
+                    ${prox ? `<a href="/colecoes/${c.slug}/${prox.id}">${esc(prox.titulo)} &raquo;</a>` : '<span class="desligado">fim da estante &raquo;</span>'}
+                </div>`,
+  });
+}
+
+function livroVisitas({ pag = 1, aviso = '', erro = '', valores = {} } = {}) {
+  const total = db.contarAprovados();
+  const recados = db.recadosAprovados(POR_PAGINA, (pag - 1) * POR_PAGINA);
+  const lista = recados.length
+    ? `<ol class="recados">
+${recados.map((r) => `                    <li class="recado">
+                        <div class="recado-cab"><b>${esc(r.nome)}</b>${r.site ? ` &middot; <a href="${esc(r.site)}" rel="nofollow ugc noopener" target="_blank">site</a>` : ''}<span>${diaDe(r.criado_em)}</span></div>
+                        <p>${comQuebras(r.mensagem)}</p>
+                    </li>`).join('\n')}
+                </ol>${paginacao('/livro-de-visitas', pag, total)}`
+    : '<p>Ninguém assinou ainda. Seja o primeiro!</p>';
+  return pagina({
+    titulo: 'Livro de visitas :: HB Hub',
+    descricao: 'Assine o livro de visitas do HB Hub e deixe um recado.',
+    aqui: 'recados',
+    seo: { caminho: '/livro-de-visitas' },
+    miolo: `                <h1 class="bem-vindo">Livro de visitas</h1>
+
+                <p>Passou por aqui? Deixa um recado! Ele aparece depois que o webmaster der uma olhada (contra spam).</p>
+${aviso ? `
+                <p class="aviso-ok">${esc(aviso)}</p>` : ''}${erro ? `
+                <p class="aviso-erro">${esc(erro)}</p>` : ''}
+
+                <section class="painel">
+                    <h2>Assinar o livro</h2>
+                    <form class="dentro form-recado" method="post" action="/livro-de-visitas">
+                        <label>Nome ou apelido <input name="nome" maxlength="40" required value="${esc(valores.nome || '')}"></label>
+                        <label>Seu site (opcional) <input name="site" maxlength="300" placeholder="https://..." value="${esc(valores.site || '')}"></label>
+                        <label class="armadilha" aria-hidden="true">Não preencha isto <input name="email" tabindex="-1" autocomplete="off"></label>
+                        <label>Recado <textarea name="mensagem" maxlength="1000" rows="5" required>${esc(valores.mensagem || '')}</textarea></label>
+                        <button class="botao">Assinar &#8250;</button>
+                    </form>
+                </section>
+
+                <section class="painel">
+                    <h2>Quem já passou por aqui <small>${total} ${total === 1 ? 'recado' : 'recados'}</small></h2>
+                    <div class="dentro">
+                ${lista}
+                    </div>
+                </section>`,
+  });
+}
+
+const AVISOS_VOTO = {
+  ok: 'Voto registrado! Valeu por participar.',
+  repetido: 'Você já tinha votado nessa enquete. Um voto por pessoa!',
+  vazio: 'Escolhe uma opção antes de votar.',
+  encerrada: 'Essa enquete já foi encerrada.',
+};
+
+function enquete(voto) {
+  const aviso = Object.hasOwn(AVISOS_VOTO, voto) ? AVISOS_VOTO[voto] : '';
+  const e = site.enqueteComOpcoes(db.enqueteAtiva() || db.enquetes()[0]);
+  const corpo = e
+    ? `                <section class="painel">
+                    <h2>${esc(e.pergunta)} <small>${e.total} ${e.total === 1 ? 'voto' : 'votos'}${e.ativa ? '' : ' &middot; encerrada'}</small></h2>
+                    <div class="dentro resultado-enquete">
+${e.opcoes.map((o) => {
+    const pct = e.total ? Math.round((o.votos / e.total) * 100) : 0;
+    return `                        <div class="opcao"><span>${esc(o.texto)}</span><span class="barra"><i style="width:${pct}%"></i></span><b>${pct}% (${o.votos})</b></div>`;
+  }).join('\n')}
+                    </div>
+                </section>`
+    : emObras('Sem enquete', 'Nenhuma enquete no ar agora. Volte mais tarde!');
+  return pagina({
+    titulo: 'Enquete :: HB Hub',
+    descricao: 'Resultado da enquete do HB Hub.',
+    noindex: true,
+    seo: { caminho: '/enquete' },
+    miolo: `                <h1 class="bem-vindo">Enquete do HB</h1>
+${aviso ? `
+                <p class="${voto === 'ok' ? 'aviso-ok' : 'aviso-erro'}">${aviso}</p>` : ''}
+
+${corpo}
+
+                <p>Um voto por visitante, sem cookie: o site guarda só uma impressão digital embaralhada, não o seu IP.</p>`,
+  });
+}
+
+function links() {
+  const lista = db.links();
+  const corpo = lista.length
+    ? `                <div class="botoes-amigos">
+${lista.map((l) => (l.botao
+    ? `                    <a href="${esc(l.url)}" target="_blank" rel="noopener" title="${esc(l.nome)}"><img src="${esc(arquivoLocal(l.botao))}" width="88" height="31" alt="${esc(l.nome)}"></a>`
+    : `                    <a class="b88 b-amigo" href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.nome)}</a>`)).join('\n')}
+                </div>`
+    : emObras('Em construção', 'Ainda tô juntando os botões dos sites amigos. Volte mais tarde!');
+  return pagina({
+    titulo: 'Links :: HB Hub',
+    descricao: 'Sites amigos e links legais, com botões 88x31 como nos velhos tempos.',
+    aqui: 'links',
+    noindex: !lista.length,
+    seo: { caminho: '/links' },
+    miolo: `                <h1 class="bem-vindo">Links</h1>
+
+                <p>Sites amigos e lugares legais da internet. Clica num botão e vai lá!</p>
+
+${corpo}`,
+  });
+}
+
+function novidades() {
+  const lista = db.novidades();
+  return pagina({
+    titulo: 'O que há de novo :: HB Hub',
+    descricao: 'Tudo que mudou no HB Hub.',
+    noindex: !lista.length,
+    seo: { caminho: '/novidades' },
+    miolo: `                <h1 class="bem-vindo">O que há de novo</h1>
+
+${lista.length ? `                <section class="painel">
+                    <h2>Diário de bordo do site</h2>
+                    ${listaNovidades(lista)}
+                </section>` : emObras('Nada ainda', 'Quando o site mudar, aparece aqui.')}`,
   });
 }
 
@@ -387,4 +583,4 @@ ${emObras(e[1], e[2])}
   });
 }
 
-module.exports = { inicio, listaSecao, porTag, post, colecoes, colecao, salaChat, erro, POR_PAGINA };
+module.exports = { inicio, listaSecao, porTag, post, colecoes, colecao, itemColecao, livroVisitas, enquete, links, novidades, salaChat, erro, POR_PAGINA };

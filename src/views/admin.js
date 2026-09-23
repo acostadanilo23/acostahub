@@ -2,7 +2,8 @@ const cfg = require('../config');
 const { esc } = require('../markdown');
 const { versao } = require('../estaticos');
 const { dataBR, agoraLocal } = require('../util');
-const { FAVICON, SECOES, urlPost, modalErro } = require('./layout');
+const { FAVICON, SECOES, urlPost, modalErro, arquivoLocal } = require('./layout');
+const db = require('../db');
 
 function casca(titulo, corpo, { js = false, classe = '' } = {}) {
   return `<!DOCTYPE html>
@@ -29,11 +30,15 @@ ${corpo}
 }
 
 function barra(atual = '') {
+  const pendentes = db.contarPendentes();
   return `    <header class="adm-barra">
         <a class="adm-logo" href="/admin"><b>H</b><i>B</i> <span>Painel do Webmaster</span></a>
         <nav>
             <a href="/admin"${atual === 'posts' ? ' class="aqui"' : ''}>Posts</a>
             <a href="/admin/colecoes"${atual === 'colecoes' ? ' class="aqui"' : ''}>Coleções</a>
+            <a href="/admin/recados"${atual === 'recados' ? ' class="aqui"' : ''}>Recados${pendentes ? ` <b class="pendentes">${pendentes}</b>` : ''}</a>
+            <a href="/admin/site"${atual === 'site' ? ' class="aqui"' : ''}>Site</a>
+            <a href="/admin/decoracao"${atual === 'decoracao' ? ' class="aqui"' : ''}>Decoração</a>
             <a href="/admin/novo"${atual === 'novo' ? ' class="aqui"' : ''}>+ Escrever</a>
             <a href="/" target="_blank">Ver site</a>
             <form method="post" action="/admin/sair"><button>Sair</button></form>
@@ -436,7 +441,7 @@ function colecaoItens(c, itens, anexos) {
                 </div>
                 <div class="campo">
                     <label for="novo-item-observacoes">Observações</label>
-                    <textarea id="novo-item-observacoes" name="observacoes" rows="2" maxlength="500" placeholder="detalhes, história, defeitos&hellip;"></textarea>
+                    <textarea id="novo-item-observacoes" name="observacoes" rows="3" maxlength="4000" placeholder="detalhes, história, defeitos&hellip; (aparece na página do item)"></textarea>
                 </div>
                 ${campoFoto('novo-item')}
                 <div class="form-acoes">
@@ -460,7 +465,7 @@ function colecaoItens(c, itens, anexos) {
                 <div class="campo"><label>Região <input id="ed-item-regiao" name="regiao" list="regioes-comuns" maxlength="50"></label></div>
                 <div class="campo"><label>Estado <input id="ed-item-estado" name="estado" list="estados-comuns" maxlength="50"></label></div>
             </div>
-            <div class="campo"><label>Observações <textarea id="ed-item-observacoes" name="observacoes" rows="2" maxlength="500"></textarea></label></div>
+            <div class="campo"><label>Observações / história <textarea id="ed-item-observacoes" name="observacoes" rows="6" maxlength="4000"></textarea></label></div>
             ${campoFoto('ed-item')}
             <div class="modal-botoes-form">
                 <button type="button" class="btn cinza fechar-modal">Cancelar</button>
@@ -483,5 +488,202 @@ function colecaoItens(c, itens, anexos) {
     </dialog>`, { js: true });
 }
 
-module.exports = { login, painel, editor, colecoes, colecaoItens, ESTILOS_CARTUCHO };
+const fmtQuando = new Intl.DateTimeFormat('pt-BR', { timeZone: cfg.FUSO, dateStyle: 'short', timeStyle: 'short' });
+
+function recados(lista) {
+  const pendentes = lista.filter((r) => !r.aprovado).length;
+  const linhas = lista.map((r) => `
+                <tr>
+                    <td>${r.aprovado ? '<span class="sit publicado">no ar</span>' : '<span class="sit agendado">pendente</span>'}</td>
+                    <td>
+                        <span class="tit">${esc(r.nome)}</span>${r.site ? `<small><a href="${esc(r.site)}" target="_blank" rel="noopener nofollow">${esc(r.site)}</a></small>` : ''}
+                        <div class="recado-texto">${esc(r.mensagem)}</div>
+                    </td>
+                    <td>${fmtQuando.format(new Date(r.criado_em))}</td>
+                    <td class="acoes">
+                        ${r.aprovado ? '' : `<button type="button" class="link-acao" data-aprovar-recado="${r.id}">aprovar</button>`}
+                        <button type="button" class="link-perigo" data-apagar-recado="${r.id}" data-nome="${esc(r.nome)}">apagar</button>
+                    </td>
+                </tr>`).join('');
+
+  return casca('Recados', `${barra('recados')}
+    <main class="adm-miolo">
+        <div class="adm-numeros">
+            <div><b>${pendentes}</b>esperando aprovação</div>
+            <div><b>${lista.length - pendentes}</b>no livro</div>
+            <div><b>${lista.length}</b>no total</div>
+            <div><b>&nbsp;</b><a href="/livro-de-visitas" target="_blank">ver no site</a></div>
+        </div>
+        <section class="painel">
+            <h2>Livro de visitas <small>recado só aparece no site depois de aprovado</small></h2>
+            ${lista.length ? `<table class="adm-tabela adm-recados">
+                <tr><th>Situação</th><th>Recado</th><th>Quando</th><th></th></tr>${linhas}
+            </table>` : '<p class="dentro">Ninguém assinou ainda.</p>'}
+        </section>
+    </main>`, { js: true });
+}
+
+function opcoesAnexos(anexos, tipos, atual) {
+  return anexos.filter((a) => tipos.includes(a.tipo)).map((a) => {
+    const url = `/uploads/${a.arquivo}`;
+    return `<option value="${esc(url)}"${url === atual ? ' selected' : ''}>${esc(a.nome_original)}</option>`;
+  }).join('');
+}
+
+function site({ status, todo, musica, enquetes, novidades, links, anexos }) {
+  const hoje = agoraLocal().slice(0, 10);
+  const listaEnquetes = enquetes.map((e) => `
+                <tr>
+                    <td>${e.ativa ? '<span class="sit publicado">no ar</span>' : '<span class="sit rascunho">encerrada</span>'}</td>
+                    <td><span class="tit">${esc(e.pergunta)}</span>
+                        <small>${e.opcoes.map((o) => `${esc(o.texto)}: <b>${o.votos}</b>`).join(' &middot; ')} &middot; total ${e.total}</small></td>
+                    <td class="acoes">
+                        <button type="button" class="link-acao" data-ativar-enquete="${e.id}" data-ativa="${e.ativa ? 0 : 1}">${e.ativa ? 'encerrar' : 'pôr no ar'}</button>
+                        <button type="button" class="link-perigo" data-apagar="/api/enquetes/${e.id}" data-confirmar="Apagar a enquete &quot;${esc(e.pergunta)}&quot; e os votos dela?">apagar</button>
+                    </td>
+                </tr>`).join('');
+  const listaNovidades = novidades.map((n) => `
+                <tr><td>${n.dia.split('-').reverse().join('/')}</td><td>${esc(n.texto)}</td>
+                    <td class="acoes"><button type="button" class="link-perigo" data-apagar="/api/novidades/${n.id}" data-confirmar="Apagar essa novidade?">apagar</button></td></tr>`).join('');
+  const listaLinks = links.map((l, i) => `
+                <tr>
+                    <td>${l.botao ? `<img src="${esc(arquivoLocal(l.botao))}" width="88" height="31" alt="">` : '<span class="b88-vazio">sem botão</span>'}</td>
+                    <td><span class="tit">${esc(l.nome)}</span><small><a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.url)}</a></small></td>
+                    <td class="col-ordem">
+                        <button type="button" class="btn-ordem" data-mover="/api/links/${l.id}/ordem" data-dir="subir"${i === 0 ? ' disabled' : ''} title="Subir">&#9650;</button>
+                        <button type="button" class="btn-ordem" data-mover="/api/links/${l.id}/ordem" data-dir="descer"${i === links.length - 1 ? ' disabled' : ''} title="Descer">&#9660;</button>
+                    </td>
+                    <td class="acoes"><button type="button" class="link-perigo" data-apagar="/api/links/${l.id}" data-confirmar="Apagar o link &quot;${esc(l.nome)}&quot;?">apagar</button></td>
+                </tr>`).join('');
+
+  return casca('Site', `${barra('site')}
+    <main class="adm-miolo pagina-site" data-max-mb="${cfg.UPLOAD_MAX_MB}">
+        <div class="adm-duas">
+            <section class="painel">
+                <h2>Status <small>caixa da direita</small></h2>
+                <form class="dentro form-colecao" data-form="status">
+                    <label for="status-texto">Uma linha por item, no formato <code>Rótulo: texto</code></label>
+                    <textarea id="status-texto" rows="6" placeholder="Jogando: Gran Turismo 4">${esc(status.map((l) => `${l.rotulo}: ${l.texto}`).join('\n'))}</textarea>
+                    <small>até 8 linhas</small>
+                    <div class="form-acoes"><button class="btn">Salvar status</button></div>
+                </form>
+            </section>
+            <section class="painel">
+                <h2>To-do <small>o post-it amarelo</small></h2>
+                <form class="dentro form-colecao" data-form="todo">
+                    <label for="todo-texto">Uma tarefa por linha. Comece com <code>x </code> pra riscar (feito).</label>
+                    <textarea id="todo-texto" rows="6" placeholder="x fazer o site">${esc(todo.map((i) => `${i.feito ? 'x ' : ''}${i.texto}`).join('\n'))}</textarea>
+                    <small>até 20 tarefas</small>
+                    <div class="form-acoes"><button class="btn">Salvar to-do</button></div>
+                </form>
+            </section>
+        </div>
+
+        <section class="painel">
+            <h2>Enquete <small>a caixa da esquerda; só uma fica no ar por vez</small></h2>
+            <form class="dentro form-colecao" data-form="enquete">
+                <div class="campo"><label for="enquete-pergunta">Pergunta</label><input id="enquete-pergunta" maxlength="120" placeholder="Qual coleção eu devia catalogar primeiro?"></div>
+                <div class="campo"><label for="enquete-opcoes">Opções (uma por linha, de 2 a 8)</label><textarea id="enquete-opcoes" rows="4" placeholder="PS2&#10;Nintendo 64"></textarea></div>
+                <div class="form-acoes"><button class="btn">Criar e pôr no ar &#8250;</button> <small>a enquete que estiver no ar é encerrada (os votos dela ficam guardados)</small></div>
+            </form>
+            ${enquetes.length ? `<table class="adm-tabela">${listaEnquetes}</table>` : ''}
+        </section>
+
+        <section class="painel">
+            <h2>O que há de novo <small>caixa na página inicial e <a href="/novidades" target="_blank">/novidades</a></small></h2>
+            <form class="dentro form-colecao form-linha" data-form="novidade">
+                <input type="date" id="novidade-dia" value="${hoje}">
+                <input id="novidade-texto" maxlength="200" placeholder="Ex: agora tem livro de visitas!">
+                <button class="btn">Adicionar</button>
+            </form>
+            ${novidades.length ? `<table class="adm-tabela">${listaNovidades}</table>` : ''}
+        </section>
+
+        <section class="painel">
+            <h2>Links <small>sites amigos em <a href="/links" target="_blank">/links</a>; botão 88x31 é opcional</small></h2>
+            <form class="dentro form-colecao" data-form="link">
+                <div class="campo-triplo">
+                    <div class="campo"><label for="link-nome">Nome</label><input id="link-nome" maxlength="40"></div>
+                    <div class="campo"><label for="link-url">Endereço</label><input id="link-url" maxlength="300" placeholder="https://..."></div>
+                    <div class="campo"><label for="link-botao">Botão 88x31</label>
+                        <select id="link-botao" data-tipos="gif,png,webp,jpg,jpeg"><option value="">(só texto)</option>${opcoesAnexos(anexos, ['gif', 'png', 'webp', 'jpg', 'jpeg'])}</select>
+                        <button type="button" class="link-acao" data-enviar-para="link-botao" data-aceita="image/gif,image/png,image/webp,image/jpeg">enviar imagem nova</button></div>
+                </div>
+                <div class="form-acoes"><button class="btn">Adicionar link</button></div>
+            </form>
+            ${links.length ? `<table class="adm-tabela">${listaLinks}</table>` : ''}
+        </section>
+
+        <section class="painel">
+            <h2>Rádio do HB <small>player na coluna da direita; só toca se o visitante apertar o play</small></h2>
+            <form class="dentro form-colecao" data-form="musica">
+                <div class="campo-duplo">
+                    <div class="campo"><label for="musica-src">Música (MP3 da biblioteca)</label>
+                        <select id="musica-src" data-tipos="mp3"><option value="">(desligada)</option>${opcoesAnexos(anexos, ['mp3'], musica?.src)}</select>
+                        <button type="button" class="link-acao" data-enviar-para="musica-src" data-aceita="audio/mpeg,.mp3">enviar MP3 novo</button></div>
+                    <div class="campo"><label for="musica-titulo">Nome que aparece</label><input id="musica-titulo" maxlength="60" value="${esc(musica?.titulo || '')}" placeholder="Rádio do HB"></div>
+                </div>
+                <small>Navegador não toca MIDI: converta pra MP3 antes (qualquer conversor de MIDI serve).</small>
+                <div class="form-acoes"><button class="btn">Salvar rádio</button> <span class="envio-status"></span></div>
+            </form>
+        </section>
+        <input type="file" id="arquivo-site" hidden>
+    </main>`, { js: true });
+}
+
+const NOMES_LUGAR = { esquerda: 'Coluna da esquerda', direita: 'Coluna da direita', mural: 'Galeria de gifs (antes do rodapé)' };
+
+function decoracao(lista) {
+  const blocos = Object.entries(NOMES_LUGAR).map(([lugar, nome]) => {
+    const doLugar = lista.filter((m) => m.lugar === lugar);
+    const linhas = doLugar.map((m, i) => `
+                <tr data-moldura="${m.id}">
+                    <td class="deco-previa"><img src="${esc(arquivoLocal(m.src))}" alt="" loading="lazy"></td>
+                    <td>
+                        <input class="deco-placa" value="${esc(m.placa)}" maxlength="24" placeholder="placa (opcional)">
+                        <select class="deco-lugar">${Object.entries(NOMES_LUGAR).map(([k, n]) => `<option value="${k}"${k === lugar ? ' selected' : ''}>${n}</option>`).join('')}</select>
+                        <small>${esc(m.src)} &middot; ${m.largura}x${m.altura}</small>
+                    </td>
+                    <td class="col-ordem">
+                        <button type="button" class="btn-ordem" data-mover="/api/molduras/${m.id}/ordem" data-dir="subir"${i === 0 ? ' disabled' : ''} title="Subir">&#9650;</button>
+                        <button type="button" class="btn-ordem" data-mover="/api/molduras/${m.id}/ordem" data-dir="descer"${i === doLugar.length - 1 ? ' disabled' : ''} title="Descer">&#9660;</button>
+                    </td>
+                    <td class="acoes">
+                        <button type="button" class="link-acao" data-salvar-moldura="${m.id}">salvar</button>
+                        <button type="button" class="link-perigo" data-apagar="/api/molduras/${m.id}" data-confirmar="Tirar essa moldura do site? (o arquivo continua na biblioteca)">remover</button>
+                    </td>
+                </tr>`).join('');
+    return `
+        <section class="painel">
+            <h2>${nome} <small>${doLugar.length} ${doLugar.length === 1 ? 'moldura' : 'molduras'}</small></h2>
+            ${doLugar.length ? `<table class="adm-tabela adm-deco">${linhas}</table>` : '<p class="dentro">Nenhuma moldura aqui.</p>'}
+        </section>`;
+  }).join('');
+
+  return casca('Decoração', `${barra('decoracao')}
+    <main class="adm-miolo pagina-deco" data-max-mb="${cfg.UPLOAD_MAX_MB}">
+        <section class="painel">
+            <h2>+ Nova moldura <small>gif animado (ou imagem) com moldura dourada e plaquinha</small></h2>
+            <form class="dentro form-colecao" id="form-moldura">
+                <div class="deco-escolha">
+                    <span class="foto-preview" id="deco-previa">nenhum gif</span>
+                    <span class="foto-botoes">
+                        <button type="button" class="btn azul" id="deco-enviar">Enviar gif novo</button>
+                        <small>ou escolha um da biblioteca abaixo</small>
+                    </span>
+                </div>
+                <ul class="foto-biblioteca deco-biblioteca" id="deco-biblioteca"><li class="vazio">carregando&hellip;</li></ul>
+                <div class="campo-duplo">
+                    <div class="campo"><label for="deco-placa">Plaquinha</label><input id="deco-placa" maxlength="24" placeholder="Ex: Pikachu"></div>
+                    <div class="campo"><label for="deco-lugar">Onde</label><select id="deco-lugar">${Object.entries(NOMES_LUGAR).map(([k, n]) => `<option value="${k}"${k === 'mural' ? ' selected' : ''}>${n}</option>`).join('')}</select></div>
+                </div>
+                <div class="form-acoes"><button class="btn">Pôr no site &#8250;</button> <span class="envio-status"></span></div>
+                <input type="file" id="deco-arquivo" hidden accept="image/gif,image/png,image/webp,image/jpeg">
+            </form>
+        </section>
+${blocos}
+    </main>`, { js: true });
+}
+
+module.exports = { login, painel, editor, colecoes, colecaoItens, recados, site, decoracao, ESTILOS_CARTUCHO };
 

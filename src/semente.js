@@ -79,9 +79,56 @@ function estiloProprioConsoles() {
   });
 }
 
+// molduras que antes eram fixas no layout
+const SEED_MOLDURAS = [
+  ['link.gif', 171, 220, 'Hyrule', 'esquerda'],
+  ['pikachu-danca.gif', 137, 181, 'Pikachu', 'direita'],
+  ['triforce.gif', 128, 96, 'Triforce', 'mural'],
+  ['mini-link.gif', 50, 54, 'Link', 'mural'],
+  ['pikachu-pokebola.gif', 80, 80, 'Pokébola', 'mural'],
+  ['dragon-ball.gif', 63, 96, 'Dragon Ball', 'mural'],
+  ['sonic.gif', 256, 150, 'Sonic', 'mural'],
+  ['pikachu-bola.gif', 66, 70, 'Pika!', 'mural'],
+  ['counter-strike.gif', 120, 155, 'CT', 'mural'],
+  ['counter-strike-2.gif', 80, 80, 'Counter-Strike', 'mural'],
+  ['pikachu-corre.gif', 80, 57, 'Corre!', 'mural'],
+];
+
+const STATUS_PADRAO = [
+  { rotulo: 'Jogando', texto: 'PS2 com RetroAchievements' },
+  { rotulo: 'Traduzindo', texto: 'xerabora (PT-BR e ES)' },
+  { rotulo: 'Lendo', texto: 'issues no GitHub' },
+  { rotulo: 'Ouvindo', texto: 'o cooler do servidor' },
+];
+
+const TODO_PADRAO = [
+  ['fazer o site', true], ['primeiro post', true], ['contribuir com open source', true],
+  ['painel pra escrever post', true], ['contador de visitas', true], ['sala de bate-papo', true],
+  ['arrumar um livro de visitas', true], ['catalogar as coleções', false], ['escrever opiniões', false],
+].map(([texto, feito]) => ({ texto, feito }));
+
+// cada semente roda uma vez só (marca em ajustes): apagar tudo no painel não faz voltar
+function sementesDoSite() {
+  db.ajuste('semente-molduras', () => {
+    if (db.contarMolduras() === 0) {
+      for (const [gif, largura, altura, placa, lugar] of SEED_MOLDURAS) {
+        db.inserirMoldura({ src: `/img/deco/${gif}`, largura, altura, placa, lugar });
+      }
+    }
+    return 'feito';
+  });
+  db.ajuste('semente-enquete', () => {
+    if (!db.enquetes().length) db.criarEnquete('Qual coleção eu devia catalogar primeiro?', ['PS2', 'Nintendo 64', 'Livros', 'Filmes']);
+    return 'feito';
+  });
+  if (db.lerAjuste('status') === undefined) db.gravarAjuste('status', STATUS_PADRAO);
+  if (db.lerAjuste('todo') === undefined) db.gravarAjuste('todo', TODO_PADRAO);
+}
+
 module.exports = function semente() {
   semeaduraColecoes();
   estiloProprioConsoles();
+  sementesDoSite();
   if (db.contarPosts() > 0) return rerenderizar();
   db.inserirPost({
     slug: 'minha-primeira-contribuicao-open-source',
